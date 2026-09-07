@@ -1,0 +1,1259 @@
+--========================================================
+-- BEN SPAWNER - FIX TOTAL V2
+-- Roblox Studio - LocalScript
+--
+-- FIX:
+-- 1. Hanya SATU name tag "Ben"
+-- 2. Name tag bawaan Humanoid dimatikan
+-- 3. Logo P dihapus total
+-- 4. Ben berada di tengah atas kepala
+-- 5. Animasi idle + walk
+-- 6. Gerakan lebih natural
+-- 7. Tidak spawn Ben dua kali
+-- 8. UI tetap draggable
+--========================================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local player = Players.LocalPlayer
+
+--========================================================
+-- SETTINGS
+--========================================================
+
+local TARGET_USERNAME = "misfitsbsthree"
+local DISPLAY_NAME = "Ben"
+
+local NPC_NAME = "Ben"
+
+local WALK_SPEED = 8
+
+local NAME_TAG_WIDTH = 120
+local NAME_TAG_HEIGHT = 30
+
+local NAME_TAG_HEIGHT_OFFSET = 2.75
+
+--========================================================
+-- VARIABLES
+--========================================================
+
+local benNPC = nil
+
+local movementEnabled = true
+
+local movementToken = 0
+
+--========================================================
+-- STOP OLD MOVEMENT
+--========================================================
+
+local function stopMovement()
+
+	movementToken += 1
+
+end
+
+--========================================================
+-- REMOVE OLD BEN
+--========================================================
+
+local function removeBen()
+
+	stopMovement()
+
+	if benNPC then
+
+		benNPC:Destroy()
+
+		benNPC = nil
+
+	end
+
+end
+
+--========================================================
+-- DISABLE DEFAULT ROBLOX NAME
+--========================================================
+
+local function disableDefaultNameTag(character)
+
+	local humanoid =
+		character:FindFirstChildOfClass("Humanoid")
+
+	if not humanoid then
+		return
+	end
+
+	-- INI YANG MENGHILANGKAN NAMETAG BAWAAN
+	humanoid.DisplayDistanceType =
+		Enum.HumanoidDisplayDistanceType.None
+
+	humanoid.NameDisplayDistance = 0
+
+end
+
+--========================================================
+-- REMOVE ONLY OUR OLD NAMETAG
+--========================================================
+
+local function removeOurNameTag(character)
+
+	local head =
+		character:FindFirstChild("Head")
+
+	if not head then
+		return
+	end
+
+	local oldTag =
+		head:FindFirstChild("BenNameTag")
+
+	if oldTag then
+		oldTag:Destroy()
+	end
+
+end
+
+--========================================================
+-- CREATE ONE NAMETAG
+--========================================================
+
+local function createNameTag(character)
+
+	if not character then
+		return
+	end
+
+	local head =
+		character:FindFirstChild("Head")
+
+	if not head then
+		return
+	end
+
+	removeOurNameTag(character)
+
+	local billboard =
+		Instance.new("BillboardGui")
+
+	billboard.Name = "BenNameTag"
+
+	billboard.Adornee = head
+
+	billboard.Parent = head
+
+	billboard.Size =
+		UDim2.fromOffset(
+			NAME_TAG_WIDTH,
+			NAME_TAG_HEIGHT
+		)
+
+	billboard.StudsOffset =
+		Vector3.new(
+			0,
+			NAME_TAG_HEIGHT_OFFSET,
+			0
+		)
+
+	billboard.AlwaysOnTop = true
+
+	billboard.MaxDistance = 1000
+
+	billboard.ResetOnSpawn = false
+
+	billboard.LightInfluence = 0
+
+	--====================================================
+	-- ONLY ONE TEXT
+	-- NO IMAGE
+	-- NO P LOGO
+	--====================================================
+
+	local nameLabel =
+		Instance.new("TextLabel")
+
+	nameLabel.Name = "Ben"
+
+	nameLabel.Parent = billboard
+
+	nameLabel.Size =
+		UDim2.fromScale(1, 1)
+
+	nameLabel.Position =
+		UDim2.fromScale(0, 0)
+
+	nameLabel.BackgroundTransparency = 1
+
+	nameLabel.BorderSizePixel = 0
+
+	nameLabel.Text = DISPLAY_NAME
+
+	-- Tidak bold
+	nameLabel.Font =
+		Enum.Font.SourceSans
+
+	nameLabel.TextSize = 18
+
+	nameLabel.TextColor3 =
+		Color3.fromRGB(
+			255,
+			255,
+			255
+		)
+
+	nameLabel.TextStrokeColor3 =
+		Color3.fromRGB(
+			0,
+			0,
+			0
+		)
+
+	nameLabel.TextStrokeTransparency = 0
+
+	nameLabel.TextXAlignment =
+		Enum.TextXAlignment.Center
+
+	nameLabel.TextYAlignment =
+		Enum.TextYAlignment.Center
+
+	nameLabel.TextWrapped = false
+
+	return billboard
+
+end
+
+--========================================================
+-- FIND ANIMATE SCRIPT
+--========================================================
+
+local function getAnimate(character)
+
+	local animate =
+		character:FindFirstChild("Animate")
+
+	if animate then
+		return animate
+	end
+
+	return nil
+
+end
+
+--========================================================
+-- CREATE ANIMATION
+--========================================================
+
+local function createAnimation(
+	animator,
+	id,
+	looped,
+	priority
+)
+
+	local animation =
+		Instance.new("Animation")
+
+	animation.AnimationId =
+		"rbxassetid://" .. tostring(id)
+
+	local track
+
+	local success =
+		pcall(function()
+
+			track =
+				animator:LoadAnimation(
+					animation
+				)
+
+		end)
+
+	if not success or not track then
+
+		animation:Destroy()
+
+		return nil
+
+	end
+
+	track.Looped = looped
+
+	track.Priority = priority
+
+	animation:Destroy()
+
+	return track
+
+end
+
+--========================================================
+-- SETUP ANIMATION SYSTEM
+--========================================================
+
+local function setupAnimationSystem(character)
+
+	local humanoid =
+		character:FindFirstChildOfClass("Humanoid")
+
+	if not humanoid then
+		return nil
+	end
+
+	local animator =
+		humanoid:FindFirstChildOfClass("Animator")
+
+	if not animator then
+
+		animator =
+			Instance.new("Animator")
+
+		animator.Parent = humanoid
+
+	end
+
+	--====================================================
+	-- DEFAULT ROBLOX R15 ANIMATIONS
+	--====================================================
+
+	local idleTrack =
+		createAnimation(
+			animator,
+			507766666,
+			true,
+			Enum.AnimationPriority.Idle
+		)
+
+	local walkTrack =
+		createAnimation(
+			animator,
+			507777826,
+			true,
+			Enum.AnimationPriority.Movement
+		)
+
+	local runTrack =
+		createAnimation(
+			animator,
+			507767714,
+			true,
+			Enum.AnimationPriority.Movement
+		)
+
+	--====================================================
+	-- DISABLE EXISTING ANIMATE
+	--====================================================
+
+	local animate =
+		getAnimate(character)
+
+	if animate then
+		animate.Disabled = true
+	end
+
+	--====================================================
+	-- START IDLE
+	--====================================================
+
+	if idleTrack then
+		idleTrack:Play(0.25)
+	end
+
+	return {
+		idle = idleTrack,
+		walk = walkTrack,
+		run = runTrack
+	}
+
+end
+
+--========================================================
+-- PLAY IDLE
+--========================================================
+
+local function playIdle(tracks)
+
+	if not tracks then
+		return
+	end
+
+	if tracks.walk then
+		tracks.walk:Stop(0.2)
+	end
+
+	if tracks.run then
+		tracks.run:Stop(0.2)
+	end
+
+	if tracks.idle
+		and not tracks.idle.IsPlaying then
+
+		tracks.idle:Play(0.25)
+
+	end
+
+end
+
+--========================================================
+-- PLAY WALK
+--========================================================
+
+local function playWalk(tracks)
+
+	if not tracks then
+		return
+	end
+
+	if tracks.idle
+		and tracks.idle.IsPlaying then
+
+		tracks.idle:Stop(0.2)
+
+	end
+
+	if tracks.run then
+		tracks.run:Stop(0.2)
+	end
+
+	if tracks.walk
+		and not tracks.walk.IsPlaying then
+
+		tracks.walk:Play(0.2)
+
+	end
+
+end
+
+--========================================================
+-- PATH WALK
+--========================================================
+
+local function walkToPosition(
+	character,
+	destination,
+	token
+)
+
+	local humanoid =
+		character:FindFirstChildOfClass("Humanoid")
+
+	local root =
+		character:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not root then
+		return
+	end
+
+	if token ~= movementToken then
+		return
+	end
+
+	--====================================================
+	-- CREATE PATH
+	--====================================================
+
+	local path =
+		PathfindingService:CreatePath({
+
+			AgentRadius = 2,
+
+			AgentHeight = 5,
+
+			AgentCanJump = false,
+
+			WaypointSpacing = 4
+
+		})
+
+	local success =
+		pcall(function()
+
+			path:ComputeAsync(
+				root.Position,
+				destination
+			)
+
+		end)
+
+	--====================================================
+	-- FALLBACK
+	--====================================================
+
+	if not success
+		or path.Status ~= Enum.PathStatus.Success then
+
+		humanoid:MoveTo(destination)
+
+		task.wait(2)
+
+		return
+
+	end
+
+	--====================================================
+	-- WALK THROUGH WAYPOINTS
+	--====================================================
+
+	local waypoints =
+		path:GetWaypoints()
+
+	for _, waypoint in ipairs(waypoints) do
+
+		if token ~= movementToken then
+			return
+		end
+
+		if not character.Parent then
+			return
+		end
+
+		if humanoid.Health <= 0 then
+			return
+		end
+
+		if not movementEnabled then
+			return
+		end
+
+		if waypoint.Action ==
+			Enum.PathWaypointAction.Jump then
+
+			-- Jangan lompat.
+			-- Ben tetap berjalan biasa.
+
+			humanoid:MoveTo(
+				waypoint.Position
+			)
+
+		else
+
+			humanoid:MoveTo(
+				waypoint.Position
+			)
+
+		end
+
+		--================================================
+		-- WAIT FOR MOVEMENT
+		--================================================
+
+		local reached = false
+
+		local connection
+
+		connection =
+			humanoid.MoveToFinished:Connect(
+				function(successMove)
+
+					reached = true
+
+				end
+			)
+
+		local timeout =
+			os.clock() + 5
+
+		while not reached
+			and os.clock() < timeout do
+
+			if token ~= movementToken then
+				break
+			end
+
+			if not movementEnabled then
+				break
+			end
+
+			task.wait(0.1)
+
+		end
+
+		connection:Disconnect()
+
+	end
+
+end
+
+--========================================================
+-- NATURAL MOVEMENT LOOP
+--========================================================
+
+local function startNaturalMovement(character)
+
+	local humanoid =
+		character:FindFirstChildOfClass("Humanoid")
+
+	local root =
+		character:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not root then
+		return
+	end
+
+	--====================================================
+	-- HUMANOID SETTINGS
+	--====================================================
+
+	humanoid.WalkSpeed =
+		WALK_SPEED
+
+	humanoid.AutoRotate = true
+
+	humanoid.JumpPower = 0
+
+	humanoid.UseJumpPower = true
+
+	humanoid:SetStateEnabled(
+		Enum.HumanoidStateType.Jumping,
+		false
+	)
+
+	--====================================================
+	-- ANIMATION
+	--====================================================
+
+	local tracks =
+		setupAnimationSystem(character)
+
+	--====================================================
+	-- NEW MOVEMENT TOKEN
+	--====================================================
+
+	movementToken += 1
+
+	local myToken =
+		movementToken
+
+	--====================================================
+	-- MOVEMENT LOOP
+	--====================================================
+
+	task.spawn(function()
+
+		while character.Parent
+			and humanoid.Health > 0
+			and myToken == movementToken do
+
+			--================================================
+			-- IDLE RANDOM
+			--================================================
+
+			if not movementEnabled then
+
+				humanoid:Move(
+					Vector3.zero,
+					false
+				)
+
+				playIdle(tracks)
+
+				task.wait(0.5)
+
+				continue
+
+			end
+
+			playIdle(tracks)
+
+			-- Diam sebentar
+			local idleTime =
+				math.random(2, 4)
+
+			local idleStart =
+				os.clock()
+
+			while os.clock() - idleStart
+				< idleTime do
+
+				if not movementEnabled then
+					break
+				end
+
+				if myToken ~= movementToken then
+					return
+				end
+
+				task.wait(0.2)
+
+			end
+
+			if not movementEnabled then
+				continue
+			end
+
+			if myToken ~= movementToken then
+				return
+			end
+
+			--================================================
+			-- RANDOM DESTINATION
+			--================================================
+
+			local angle =
+				math.random() * math.pi * 2
+
+			local distance =
+				math.random(10, 22)
+
+			local destination =
+				root.Position
+				+ Vector3.new(
+					math.cos(angle) * distance,
+					0,
+					math.sin(angle) * distance
+				)
+
+			--================================================
+			-- WALK
+			--================================================
+
+			playWalk(tracks)
+
+			walkToPosition(
+				character,
+				destination,
+				myToken
+			)
+
+			--================================================
+			-- STOP
+			--================================================
+
+			if character.Parent
+				and humanoid.Health > 0 then
+
+				humanoid:Move(
+					Vector3.zero,
+					false
+				)
+
+				playIdle(tracks)
+
+			end
+
+			-- Sedikit pause sebelum memilih tujuan baru
+			task.wait(
+				math.random(1, 3)
+			)
+
+		end
+
+	end)
+
+end
+
+--========================================================
+-- SPAWN BEN
+--========================================================
+
+local function spawnBen()
+
+	-- Jangan duplicate
+	if benNPC
+		and benNPC.Parent then
+
+		return
+
+	end
+
+	--====================================================
+	-- GET USER ID
+	--====================================================
+
+	local success, userId =
+		pcall(function()
+
+			return Players:GetUserIdFromNameAsync(
+				TARGET_USERNAME
+			)
+
+		end)
+
+	if not success
+		or not userId then
+
+		warn(
+			"Gagal menemukan:",
+			TARGET_USERNAME
+		)
+
+		return
+
+	end
+
+	--====================================================
+	-- GET AVATAR DESCRIPTION
+	--====================================================
+
+	local success2, description =
+		pcall(function()
+
+			return Players:GetHumanoidDescriptionFromUserIdAsync(
+				userId
+			)
+
+		end)
+
+	if not success2
+		or not description then
+
+		warn(
+			"Gagal mengambil avatar Ben."
+		)
+
+		return
+
+	end
+
+	--====================================================
+	-- CREATE CHARACTER
+	--====================================================
+
+	local success3, model =
+		pcall(function()
+
+			return Players:CreateHumanoidModelFromDescriptionAsync(
+				description,
+				Enum.HumanoidRigType.R15
+			)
+
+		end)
+
+	if not success3
+		or not model then
+
+		warn(
+			"Gagal membuat model Ben."
+		)
+
+		return
+
+	end
+
+	benNPC = model
+
+	benNPC.Name =
+		NPC_NAME
+
+	benNPC.Parent =
+		workspace
+
+	--====================================================
+	-- GET HUMANOID
+	--====================================================
+
+	local humanoid =
+		benNPC:FindFirstChildOfClass("Humanoid")
+
+	local root =
+		benNPC:FindFirstChild("HumanoidRootPart")
+
+	--====================================================
+	-- MATIKAN NAMETAG BAWAAN
+	--====================================================
+
+	if humanoid then
+
+		humanoid.DisplayDistanceType =
+			Enum.HumanoidDisplayDistanceType.None
+
+		humanoid.NameDisplayDistance = 0
+
+	end
+
+	--====================================================
+	-- POSITION
+	--====================================================
+
+	local character =
+		player.Character
+
+	local playerRoot =
+		character
+		and character:FindFirstChild(
+			"HumanoidRootPart"
+		)
+
+	if playerRoot and root then
+
+		root.CFrame =
+			playerRoot.CFrame
+			* CFrame.new(5, 0, 0)
+
+	end
+
+	--====================================================
+	-- CREATE ONLY ONE NAMETAG
+	--====================================================
+
+	createNameTag(benNPC)
+
+	--====================================================
+	-- NATURAL MOVEMENT
+	--====================================================
+
+	startNaturalMovement(benNPC)
+
+	print(
+		"[BEN] Spawn berhasil."
+	)
+
+end
+
+--========================================================
+-- UI
+--========================================================
+
+local oldUI =
+	player.PlayerGui:FindFirstChild(
+		"BenSpawnerUI"
+	)
+
+if oldUI then
+	oldUI:Destroy()
+end
+
+local screenGui =
+	Instance.new("ScreenGui")
+
+screenGui.Name =
+	"BenSpawnerUI"
+
+screenGui.ResetOnSpawn = false
+
+screenGui.Parent =
+	player:WaitForChild("PlayerGui")
+
+--========================================================
+-- MAIN FRAME
+--========================================================
+
+local mainFrame =
+	Instance.new("Frame")
+
+mainFrame.Name =
+	"Main"
+
+mainFrame.Parent =
+	screenGui
+
+mainFrame.Size =
+	UDim2.fromOffset(
+		305,
+		220
+	)
+
+mainFrame.Position =
+	UDim2.new(
+		0,
+		215,
+		0.5,
+		-110
+	)
+
+mainFrame.BackgroundColor3 =
+	Color3.fromRGB(
+		25,
+		25,
+		25
+	)
+
+mainFrame.BorderSizePixel = 0
+
+local corner =
+	Instance.new("UICorner")
+
+corner.CornerRadius =
+	UDim.new(
+		0,
+		10
+	)
+
+corner.Parent =
+	mainFrame
+
+--========================================================
+-- TITLE
+--========================================================
+
+local title =
+	Instance.new("TextLabel")
+
+title.Parent =
+	mainFrame
+
+title.Size =
+	UDim2.new(
+		1,
+		0,
+		0,
+		40
+	)
+
+title.Position =
+	UDim2.fromOffset(
+		0,
+		5
+	)
+
+title.BackgroundTransparency = 1
+
+title.Text =
+	"Ben Spawner"
+
+title.TextColor3 =
+	Color3.fromRGB(
+		255,
+		255,
+		255
+	)
+
+title.Font =
+	Enum.Font.SourceSansBold
+
+title.TextSize = 20
+
+--========================================================
+-- BUTTON CREATOR
+--========================================================
+
+local function createButton(
+	text,
+	position
+)
+
+	local button =
+		Instance.new("TextButton")
+
+	button.Parent =
+		mainFrame
+
+	button.Size =
+		UDim2.new(
+			1,
+			-20,
+			0,
+			38
+		)
+
+	button.Position =
+		position
+
+	button.BackgroundColor3 =
+		Color3.fromRGB(
+			45,
+			45,
+			45
+		)
+
+	button.BorderSizePixel = 0
+
+	button.Text =
+		text
+
+	button.TextColor3 =
+		Color3.fromRGB(
+			255,
+			255,
+			255
+		)
+
+	button.Font =
+		Enum.Font.SourceSans
+
+	button.TextSize = 17
+
+	local buttonCorner =
+		Instance.new("UICorner")
+
+	buttonCorner.CornerRadius =
+		UDim.new(
+			0,
+			7
+		)
+
+	buttonCorner.Parent =
+		button
+
+	return button
+
+end
+
+--========================================================
+-- BUTTONS
+--========================================================
+
+local spawnButton =
+	createButton(
+		"Spawn Ben",
+		UDim2.fromOffset(
+			10,
+			50
+		)
+	)
+
+local movementButton =
+	createButton(
+		"Gerak: ON",
+		UDim2.fromOffset(
+			10,
+			95
+		)
+	)
+
+local removeButton =
+	createButton(
+		"Hapus Ben",
+		UDim2.fromOffset(
+			10,
+			140
+		)
+	)
+
+--========================================================
+-- BUTTON EVENTS
+--========================================================
+
+spawnButton.MouseButton1Click:Connect(
+	function()
+
+		spawnBen()
+
+	end
+)
+
+movementButton.MouseButton1Click:Connect(
+	function()
+
+		movementEnabled =
+			not movementEnabled
+
+		if movementEnabled then
+
+			movementButton.Text =
+				"Gerak: ON"
+
+			if benNPC then
+
+				-- Restart movement
+				startNaturalMovement(
+					benNPC
+				)
+
+			end
+
+		else
+
+			movementButton.Text =
+				"Gerak: OFF"
+
+			if benNPC then
+
+				local humanoid =
+					benNPC:FindFirstChildOfClass(
+						"Humanoid"
+					)
+
+				if humanoid then
+
+					humanoid:Move(
+						Vector3.zero,
+						false
+					)
+
+				end
+
+			end
+
+		end
+
+	end
+)
+
+removeButton.MouseButton1Click:Connect(
+	function()
+
+		removeBen()
+
+	end
+)
+
+--========================================================
+-- DRAG UI
+--========================================================
+
+local dragging = false
+
+local dragStart
+
+local startPosition
+
+mainFrame.InputBegan:Connect(
+	function(input)
+
+		if input.UserInputType ==
+			Enum.UserInputType.MouseButton1
+			or input.UserInputType ==
+			Enum.UserInputType.Touch then
+
+			dragging = true
+
+			dragStart =
+				input.Position
+
+			startPosition =
+				mainFrame.Position
+
+			input.Changed:Connect(
+				function()
+
+					if input.UserInputState ==
+						Enum.UserInputState.End then
+
+						dragging = false
+
+					end
+
+				end
+			)
+
+		end
+
+	end
+)
+
+UserInputService.InputChanged:Connect(
+	function(input)
+
+		if not dragging then
+			return
+		end
+
+		if input.UserInputType ==
+			Enum.UserInputType.MouseMovement
+			or input.UserInputType ==
+			Enum.UserInputType.Touch then
+
+			local delta =
+				input.Position - dragStart
+
+			mainFrame.Position =
+				UDim2.new(
+					startPosition.X.Scale,
+					startPosition.X.Offset
+						+ delta.X,
+
+					startPosition.Y.Scale,
+					startPosition.Y.Offset
+						+ delta.Y
+				)
+
+		end
+
+	end
+)
+
+print(
+	"[BEN SPAWNER] FIX TOTAL V2 LOADED"
+)
