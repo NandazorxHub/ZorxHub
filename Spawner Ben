@@ -1,16 +1,5 @@
 --========================================================
--- BEN SPAWNER - FIX TOTAL V2
--- Roblox Studio - LocalScript
---
--- FIX:
--- 1. Hanya SATU name tag "Ben"
--- 2. Name tag bawaan Humanoid dimatikan
--- 3. Logo P dihapus total
--- 4. Ben berada di tengah atas kepala
--- 5. Animasi idle + walk
--- 6. Gerakan lebih natural
--- 7. Tidak spawn Ben dua kali
--- 8. UI tetap draggable
+-- BEN SPAWNER - FIX TOTAL V7
 --========================================================
 
 local Players = game:GetService("Players")
@@ -25,38 +14,42 @@ local player = Players.LocalPlayer
 
 local TARGET_USERNAME = "misfitsbsthree"
 local DISPLAY_NAME = "Ben"
-
 local NPC_NAME = "Ben"
 
 local WALK_SPEED = 8
 
-local NAME_TAG_WIDTH = 120
-local NAME_TAG_HEIGHT = 30
-
+local NAME_TAG_WIDTH = 150
+local NAME_TAG_HEIGHT = 32
 local NAME_TAG_HEIGHT_OFFSET = 2.75
+
+--========================================================
+-- VERIFIED BADGE
+--========================================================
+
+local VERIFIED_ASSET =
+	"rbxthumb://type=Asset&id=137778133202746&w=420&h=420"
+
+local BADGE_SIZE = 20
+local BADGE_GAP = 7
 
 --========================================================
 -- VARIABLES
 --========================================================
 
 local benNPC = nil
-
 local movementEnabled = true
-
 local movementToken = 0
 
 --========================================================
--- STOP OLD MOVEMENT
+-- STOP MOVEMENT
 --========================================================
 
 local function stopMovement()
-
 	movementToken += 1
-
 end
 
 --========================================================
--- REMOVE OLD BEN
+-- REMOVE BEN
 --========================================================
 
 local function removeBen()
@@ -64,17 +57,14 @@ local function removeBen()
 	stopMovement()
 
 	if benNPC then
-
 		benNPC:Destroy()
-
 		benNPC = nil
-
 	end
 
 end
 
 --========================================================
--- DISABLE DEFAULT ROBLOX NAME
+-- DISABLE DEFAULT NAME
 --========================================================
 
 local function disableDefaultNameTag(character)
@@ -86,7 +76,6 @@ local function disableDefaultNameTag(character)
 		return
 	end
 
-	-- INI YANG MENGHILANGKAN NAMETAG BAWAAN
 	humanoid.DisplayDistanceType =
 		Enum.HumanoidDisplayDistanceType.None
 
@@ -95,7 +84,7 @@ local function disableDefaultNameTag(character)
 end
 
 --========================================================
--- REMOVE ONLY OUR OLD NAMETAG
+-- REMOVE OLD NAMETAG
 --========================================================
 
 local function removeOurNameTag(character)
@@ -117,7 +106,7 @@ local function removeOurNameTag(character)
 end
 
 --========================================================
--- CREATE ONE NAMETAG
+-- CREATE NAME TAG
 --========================================================
 
 local function createNameTag(character)
@@ -135,14 +124,21 @@ local function createNameTag(character)
 
 	removeOurNameTag(character)
 
+	--====================================================
+	-- BILLBOARD
+	--====================================================
+
 	local billboard =
 		Instance.new("BillboardGui")
 
-	billboard.Name = "BenNameTag"
+	billboard.Name =
+		"BenNameTag"
 
-	billboard.Adornee = head
+	billboard.Adornee =
+		head
 
-	billboard.Parent = head
+	billboard.Parent =
+		head
 
 	billboard.Size =
 		UDim2.fromOffset(
@@ -158,39 +154,41 @@ local function createNameTag(character)
 		)
 
 	billboard.AlwaysOnTop = true
-
 	billboard.MaxDistance = 1000
-
 	billboard.ResetOnSpawn = false
-
 	billboard.LightInfluence = 0
 
 	--====================================================
-	-- ONLY ONE TEXT
-	-- NO IMAGE
-	-- NO P LOGO
+	-- NAME
 	--====================================================
 
 	local nameLabel =
 		Instance.new("TextLabel")
 
-	nameLabel.Name = "Ben"
+	nameLabel.Name =
+		"Ben"
 
-	nameLabel.Parent = billboard
+	nameLabel.Parent =
+		billboard
 
 	nameLabel.Size =
-		UDim2.fromScale(1, 1)
+		UDim2.fromOffset(
+			68,
+			NAME_TAG_HEIGHT
+		)
 
 	nameLabel.Position =
-		UDim2.fromScale(0, 0)
+		UDim2.fromOffset(
+			0,
+			0
+		)
 
 	nameLabel.BackgroundTransparency = 1
-
 	nameLabel.BorderSizePixel = 0
 
-	nameLabel.Text = DISPLAY_NAME
+	nameLabel.Text =
+		DISPLAY_NAME
 
-	-- Tidak bold
 	nameLabel.Font =
 		Enum.Font.SourceSans
 
@@ -213,31 +211,57 @@ local function createNameTag(character)
 	nameLabel.TextStrokeTransparency = 0
 
 	nameLabel.TextXAlignment =
-		Enum.TextXAlignment.Center
+		Enum.TextXAlignment.Right
 
 	nameLabel.TextYAlignment =
 		Enum.TextYAlignment.Center
 
-	nameLabel.TextWrapped = false
+	nameLabel.ZIndex = 5
+
+	--====================================================
+	-- VERIFIED IMAGE
+	--====================================================
+
+	local verified =
+		Instance.new("ImageLabel")
+
+	verified.Name =
+		"VerifiedBadge"
+
+	verified.Parent =
+		billboard
+
+	verified.Size =
+		UDim2.fromOffset(
+			BADGE_SIZE,
+			BADGE_SIZE
+		)
+
+	verified.Position =
+		UDim2.fromOffset(
+			68 + BADGE_GAP,
+			6
+		)
+
+	verified.BackgroundTransparency = 1
+	verified.BorderSizePixel = 0
+
+	-- FORMAT YANG WORK DI TEST KAMU
+	verified.Image =
+		VERIFIED_ASSET
+
+	verified.ScaleType =
+		Enum.ScaleType.Fit
+
+	verified.ImageTransparency = 0
+	verified.ZIndex = 10
+
+	print(
+		"[BEN] Verified badge loaded:",
+		VERIFIED_ASSET
+	)
 
 	return billboard
-
-end
-
---========================================================
--- FIND ANIMATE SCRIPT
---========================================================
-
-local function getAnimate(character)
-
-	local animate =
-		character:FindFirstChild("Animate")
-
-	if animate then
-		return animate
-	end
-
-	return nil
 
 end
 
@@ -279,7 +303,6 @@ local function createAnimation(
 	end
 
 	track.Looped = looped
-
 	track.Priority = priority
 
 	animation:Destroy()
@@ -289,33 +312,34 @@ local function createAnimation(
 end
 
 --========================================================
--- SETUP ANIMATION SYSTEM
+-- ANIMATION SYSTEM
 --========================================================
 
 local function setupAnimationSystem(character)
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	if not humanoid then
 		return nil
 	end
 
 	local animator =
-		humanoid:FindFirstChildOfClass("Animator")
+		humanoid:FindFirstChildOfClass(
+			"Animator"
+		)
 
 	if not animator then
 
 		animator =
 			Instance.new("Animator")
 
-		animator.Parent = humanoid
+		animator.Parent =
+			humanoid
 
 	end
-
-	--====================================================
-	-- DEFAULT ROBLOX R15 ANIMATIONS
-	--====================================================
 
 	local idleTrack =
 		createAnimation(
@@ -341,20 +365,12 @@ local function setupAnimationSystem(character)
 			Enum.AnimationPriority.Movement
 		)
 
-	--====================================================
-	-- DISABLE EXISTING ANIMATE
-	--====================================================
-
 	local animate =
-		getAnimate(character)
+		character:FindFirstChild("Animate")
 
 	if animate then
 		animate.Disabled = true
 	end
-
-	--====================================================
-	-- START IDLE
-	--====================================================
 
 	if idleTrack then
 		idleTrack:Play(0.25)
@@ -369,7 +385,7 @@ local function setupAnimationSystem(character)
 end
 
 --========================================================
--- PLAY IDLE
+-- IDLE
 --========================================================
 
 local function playIdle(tracks)
@@ -396,7 +412,7 @@ local function playIdle(tracks)
 end
 
 --========================================================
--- PLAY WALK
+-- WALK
 --========================================================
 
 local function playWalk(tracks)
@@ -436,10 +452,14 @@ local function walkToPosition(
 )
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	local root =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not humanoid or not root then
 		return
@@ -449,19 +469,12 @@ local function walkToPosition(
 		return
 	end
 
-	--====================================================
-	-- CREATE PATH
-	--====================================================
-
 	local path =
 		PathfindingService:CreatePath({
 
 			AgentRadius = 2,
-
 			AgentHeight = 5,
-
 			AgentCanJump = false,
-
 			WaypointSpacing = 4
 
 		})
@@ -476,12 +489,9 @@ local function walkToPosition(
 
 		end)
 
-	--====================================================
-	-- FALLBACK
-	--====================================================
-
 	if not success
-		or path.Status ~= Enum.PathStatus.Success then
+		or path.Status
+			~= Enum.PathStatus.Success then
 
 		humanoid:MoveTo(destination)
 
@@ -491,14 +501,11 @@ local function walkToPosition(
 
 	end
 
-	--====================================================
-	-- WALK THROUGH WAYPOINTS
-	--====================================================
-
 	local waypoints =
 		path:GetWaypoints()
 
-	for _, waypoint in ipairs(waypoints) do
+	for _, waypoint
+		in ipairs(waypoints) do
 
 		if token ~= movementToken then
 			return
@@ -516,27 +523,9 @@ local function walkToPosition(
 			return
 		end
 
-		if waypoint.Action ==
-			Enum.PathWaypointAction.Jump then
-
-			-- Jangan lompat.
-			-- Ben tetap berjalan biasa.
-
-			humanoid:MoveTo(
-				waypoint.Position
-			)
-
-		else
-
-			humanoid:MoveTo(
-				waypoint.Position
-			)
-
-		end
-
-		--================================================
-		-- WAIT FOR MOVEMENT
-		--================================================
+		humanoid:MoveTo(
+			waypoint.Position
+		)
 
 		local reached = false
 
@@ -544,7 +533,7 @@ local function walkToPosition(
 
 		connection =
 			humanoid.MoveToFinished:Connect(
-				function(successMove)
+				function()
 
 					reached = true
 
@@ -576,68 +565,57 @@ local function walkToPosition(
 end
 
 --========================================================
--- NATURAL MOVEMENT LOOP
+-- NATURAL MOVEMENT
 --========================================================
 
 local function startNaturalMovement(character)
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	local root =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not humanoid or not root then
 		return
 	end
 
-	--====================================================
-	-- HUMANOID SETTINGS
-	--====================================================
-
 	humanoid.WalkSpeed =
 		WALK_SPEED
 
-	humanoid.AutoRotate = true
+	humanoid.AutoRotate =
+		true
 
-	humanoid.JumpPower = 0
+	humanoid.JumpPower =
+		0
 
-	humanoid.UseJumpPower = true
+	humanoid.UseJumpPower =
+		true
 
 	humanoid:SetStateEnabled(
 		Enum.HumanoidStateType.Jumping,
 		false
 	)
 
-	--====================================================
-	-- ANIMATION
-	--====================================================
-
 	local tracks =
-		setupAnimationSystem(character)
-
-	--====================================================
-	-- NEW MOVEMENT TOKEN
-	--====================================================
+		setupAnimationSystem(
+			character
+		)
 
 	movementToken += 1
 
 	local myToken =
 		movementToken
 
-	--====================================================
-	-- MOVEMENT LOOP
-	--====================================================
-
 	task.spawn(function()
 
 		while character.Parent
 			and humanoid.Health > 0
 			and myToken == movementToken do
-
-			--================================================
-			-- IDLE RANDOM
-			--================================================
 
 			if not movementEnabled then
 
@@ -656,15 +634,14 @@ local function startNaturalMovement(character)
 
 			playIdle(tracks)
 
-			-- Diam sebentar
 			local idleTime =
 				math.random(2, 4)
 
 			local idleStart =
 				os.clock()
 
-			while os.clock() - idleStart
-				< idleTime do
+			while os.clock()
+				- idleStart < idleTime do
 
 				if not movementEnabled then
 					break
@@ -686,12 +663,10 @@ local function startNaturalMovement(character)
 				return
 			end
 
-			--================================================
-			-- RANDOM DESTINATION
-			--================================================
-
 			local angle =
-				math.random() * math.pi * 2
+				math.random()
+				* math.pi
+				* 2
 
 			local distance =
 				math.random(10, 22)
@@ -699,14 +674,12 @@ local function startNaturalMovement(character)
 			local destination =
 				root.Position
 				+ Vector3.new(
-					math.cos(angle) * distance,
+					math.cos(angle)
+						* distance,
 					0,
-					math.sin(angle) * distance
+					math.sin(angle)
+						* distance
 				)
-
-			--================================================
-			-- WALK
-			--================================================
 
 			playWalk(tracks)
 
@@ -715,10 +688,6 @@ local function startNaturalMovement(character)
 				destination,
 				myToken
 			)
-
-			--================================================
-			-- STOP
-			--================================================
 
 			if character.Parent
 				and humanoid.Health > 0 then
@@ -732,7 +701,6 @@ local function startNaturalMovement(character)
 
 			end
 
-			-- Sedikit pause sebelum memilih tujuan baru
 			task.wait(
 				math.random(1, 3)
 			)
@@ -749,17 +717,12 @@ end
 
 local function spawnBen()
 
-	-- Jangan duplicate
 	if benNPC
 		and benNPC.Parent then
 
 		return
 
 	end
-
-	--====================================================
-	-- GET USER ID
-	--====================================================
 
 	local success, userId =
 		pcall(function()
@@ -782,10 +745,6 @@ local function spawnBen()
 
 	end
 
-	--====================================================
-	-- GET AVATAR DESCRIPTION
-	--====================================================
-
 	local success2, description =
 		pcall(function()
 
@@ -805,10 +764,6 @@ local function spawnBen()
 		return
 
 	end
-
-	--====================================================
-	-- CREATE CHARACTER
-	--====================================================
 
 	local success3, model =
 		pcall(function()
@@ -831,7 +786,8 @@ local function spawnBen()
 
 	end
 
-	benNPC = model
+	benNPC =
+		model
 
 	benNPC.Name =
 		NPC_NAME
@@ -839,32 +795,23 @@ local function spawnBen()
 	benNPC.Parent =
 		workspace
 
-	--====================================================
-	-- GET HUMANOID
-	--====================================================
-
 	local humanoid =
-		benNPC:FindFirstChildOfClass("Humanoid")
+		benNPC:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	local root =
-		benNPC:FindFirstChild("HumanoidRootPart")
-
-	--====================================================
-	-- MATIKAN NAMETAG BAWAAN
-	--====================================================
+		benNPC:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if humanoid then
 
-		humanoid.DisplayDistanceType =
-			Enum.HumanoidDisplayDistanceType.None
-
-		humanoid.NameDisplayDistance = 0
+		disableDefaultNameTag(
+			benNPC
+		)
 
 	end
-
-	--====================================================
-	-- POSITION
-	--====================================================
 
 	local character =
 		player.Character
@@ -875,25 +822,27 @@ local function spawnBen()
 			"HumanoidRootPart"
 		)
 
-	if playerRoot and root then
+	if playerRoot
+		and root then
 
 		root.CFrame =
 			playerRoot.CFrame
-			* CFrame.new(5, 0, 0)
+			* CFrame.new(
+				5,
+				0,
+				0
+			)
 
 	end
 
-	--====================================================
-	-- CREATE ONLY ONE NAMETAG
-	--====================================================
+	-- NAME + VERIFIED
+	createNameTag(
+		benNPC
+	)
 
-	createNameTag(benNPC)
-
-	--====================================================
-	-- NATURAL MOVEMENT
-	--====================================================
-
-	startNaturalMovement(benNPC)
+	startNaturalMovement(
+		benNPC
+	)
 
 	print(
 		"[BEN] Spawn berhasil."
@@ -920,10 +869,13 @@ local screenGui =
 screenGui.Name =
 	"BenSpawnerUI"
 
-screenGui.ResetOnSpawn = false
+screenGui.ResetOnSpawn =
+	false
 
 screenGui.Parent =
-	player:WaitForChild("PlayerGui")
+	player:WaitForChild(
+		"PlayerGui"
+	)
 
 --========================================================
 -- MAIN FRAME
@@ -959,7 +911,8 @@ mainFrame.BackgroundColor3 =
 		25
 	)
 
-mainFrame.BorderSizePixel = 0
+mainFrame.BorderSizePixel =
+	0
 
 local corner =
 	Instance.new("UICorner")
@@ -997,7 +950,8 @@ title.Position =
 		5
 	)
 
-title.BackgroundTransparency = 1
+title.BackgroundTransparency =
+	1
 
 title.Text =
 	"Ben Spawner"
@@ -1012,7 +966,8 @@ title.TextColor3 =
 title.Font =
 	Enum.Font.SourceSansBold
 
-title.TextSize = 20
+title.TextSize =
+	20
 
 --========================================================
 -- BUTTON CREATOR
@@ -1047,7 +1002,8 @@ local function createButton(
 			45
 		)
 
-	button.BorderSizePixel = 0
+	button.BorderSizePixel =
+		0
 
 	button.Text =
 		text
@@ -1062,7 +1018,8 @@ local function createButton(
 	button.Font =
 		Enum.Font.SourceSans
 
-	button.TextSize = 17
+	button.TextSize =
+		17
 
 	local buttonCorner =
 		Instance.new("UICorner")
@@ -1136,7 +1093,6 @@ movementButton.MouseButton1Click:Connect(
 
 			if benNPC then
 
-				-- Restart movement
 				startNaturalMovement(
 					benNPC
 				)
@@ -1184,9 +1140,7 @@ removeButton.MouseButton1Click:Connect(
 --========================================================
 
 local dragging = false
-
 local dragStart
-
 local startPosition
 
 mainFrame.InputBegan:Connect(
@@ -1195,7 +1149,7 @@ mainFrame.InputBegan:Connect(
 		if input.UserInputType ==
 			Enum.UserInputType.MouseButton1
 			or input.UserInputType ==
-			Enum.UserInputType.Touch then
+				Enum.UserInputType.Touch then
 
 			dragging = true
 
@@ -1233,10 +1187,11 @@ UserInputService.InputChanged:Connect(
 		if input.UserInputType ==
 			Enum.UserInputType.MouseMovement
 			or input.UserInputType ==
-			Enum.UserInputType.Touch then
+				Enum.UserInputType.Touch then
 
 			local delta =
-				input.Position - dragStart
+				input.Position
+				- dragStart
 
 			mainFrame.Position =
 				UDim2.new(
@@ -1255,5 +1210,5 @@ UserInputService.InputChanged:Connect(
 )
 
 print(
-	"[BEN SPAWNER] FIX TOTAL V2 LOADED"
+	"[BEN SPAWNER] FIX TOTAL V7 LOADED"
 )
