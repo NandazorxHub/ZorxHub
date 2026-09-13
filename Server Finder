@@ -1,0 +1,564 @@
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+-- =========================================================
+-- CONFIG
+-- =========================================================
+
+local MAKS_HALAMAN = 40
+
+-- Jeda antar pencarian
+local JEDA_CARI_LAGI = 0.15
+
+-- Jeda antar halaman API
+local JEDA_HALAMAN = 0.02
+
+-- Berapa lama server gagal disimpan di blacklist
+local WAKTU_BLACKLIST = 60
+
+-- =========================================================
+-- STATE
+-- =========================================================
+
+local sedangJalan = false
+
+-- [JobId] = waktu blacklist berakhir
+local Blacklist = {}
+
+local totalDicoba = 0
+local totalGagal = 0
+
+local teleportFailed = false
+local lastTeleportError = nil
+
+-- =========================================================
+-- GUI
+-- =========================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local LabelMaks = Instance.new("TextLabel")
+local InputMaks = Instance.new("TextBox")
+local Status = Instance.new("TextLabel")
+local Info = Instance.new("TextLabel")
+local btnMulai = Instance.new("TextButton")
+
+ScreenGui.Name = "SERVER_FINDER"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+MainFrame.BorderColor3 = Color3.fromRGB(255, 50, 50)
+MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
+MainFrame.Size = UDim2.new(0, 390, 0, 325)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+Title.Size = UDim2.new(1, 0, 0, 48)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "SERVER FINDER ZORXHUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 80)
+Title.TextSize = 14
+
+LabelMaks.Parent = MainFrame
+LabelMaks.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+LabelMaks.Position = UDim2.new(0, 15, 0, 65)
+LabelMaks.Size = UDim2.new(0, 165, 0, 42)
+LabelMaks.Font = Enum.Font.Gotham
+LabelMaks.Text = "Maksimal pemain:"
+LabelMaks.TextColor3 = Color3.fromRGB(220, 220, 220)
+LabelMaks.TextSize = 11
+LabelMaks.TextXAlignment = Enum.TextXAlignment.Left
+
+InputMaks.Parent = MainFrame
+InputMaks.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+InputMaks.Position = UDim2.new(0, 185, 0, 65)
+InputMaks.Size = UDim2.new(0, 175, 0, 42)
+InputMaks.Font = Enum.Font.GothamBold
+InputMaks.Text = "1"
+InputMaks.TextColor3 = Color3.fromRGB(255, 100, 50)
+InputMaks.TextSize = 16
+InputMaks.TextXAlignment = Enum.TextXAlignment.Center
+InputMaks.PlaceholderText = "Ketik angka..."
+
+Status.Parent = MainFrame
+Status.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Status.Position = UDim2.new(0, 15, 0, 120)
+Status.Size = UDim2.new(1, -30, 0, 55)
+Status.Font = Enum.Font.Gotham
+Status.Text = "Masukkan batas pemain."
+Status.TextColor3 = Color3.fromRGB(255, 150, 100)
+Status.TextSize = 11
+Status.TextWrapped = true
+
+Info.Parent = MainFrame
+Info.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Info.Position = UDim2.new(0, 15, 0, 182)
+Info.Size = UDim2.new(1, -30, 0, 45)
+Info.Font = Enum.Font.Gotham
+Info.Text = "Bypas: 0 | Gagal: 0 | Dibuang: 0"
+Info.TextColor3 = Color3.fromRGB(180, 180, 180)
+Info.TextSize = 11
+Info.TextWrapped = true
+
+btnMulai.Parent = MainFrame
+btnMulai.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
+btnMulai.Position = UDim2.new(0, 20, 0, 240)
+btnMulai.Size = UDim2.new(1, -40, 0, 55)
+btnMulai.Font = Enum.Font.GothamBold
+btnMulai.Text = "MULAI SERVER REJOIN"
+btnMulai.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnMulai.TextSize = 14
+
+-- =========================================================
+-- STATUS
+-- =========================================================
+
+local function SetStatus(text)
+	Status.Text = text
+end
+
+local function UpdateInfo()
+	local jumlahBlacklist = 0
+
+	for _ in pairs(Blacklist) do
+		jumlahBlacklist += 1
+	end
+
+	Info.Text =
+    "Bypas: "
+    .. totalDicoba
+    .. " | Gagal: "
+    .. totalGagal
+    .. " | Dibuang: "
+    .. jumlahBlacklist
+end
+
+-- =========================================================
+-- BLACKLIST
+-- =========================================================
+
+local function BersihkanBlacklist()
+
+	local sekarang = os.clock()
+
+	for jobId, expireTime in pairs(Blacklist) do
+
+		if sekarang >= expireTime then
+			Blacklist[jobId] = nil
+		end
+
+	end
+
+end
+
+local function BuangServer(jobId, alasan)
+
+	if not jobId then
+		return
+	end
+
+	Blacklist[jobId] = os.clock() + WAKTU_BLACKLIST
+
+	totalGagal += 1
+
+	UpdateInfo()
+
+	SetStatus(
+		"🗑️ Server dibuang\n"
+		.. string.sub(jobId, 1, 12)
+		.. "...\n"
+		.. tostring(alasan or "Teleport gagal")
+	)
+
+end
+
+local function ServerDibuang(jobId)
+
+	BersihkanBlacklist()
+
+	if not jobId then
+		return true
+	end
+
+	return Blacklist[jobId] ~= nil
+end
+
+-- =========================================================
+-- AMBIL SERVER
+-- =========================================================
+
+local function AmbilServer(cursor)
+
+	local url =
+		"https://games.roblox.com/v1/games/"
+		.. PlaceId
+		.. "/servers/Public?sortOrder=Asc&limit=100"
+
+	if cursor then
+		url =
+			url
+			.. "&cursor="
+			.. HttpService:UrlEncode(cursor)
+	end
+
+	local success, result = pcall(function()
+
+		local response = game:HttpGet(url)
+
+		return HttpService:JSONDecode(response)
+
+	end)
+
+	if not success then
+		return nil
+	end
+
+	if not result or not result.data then
+		return nil
+	end
+
+	return result
+
+end
+
+-- =========================================================
+-- VALIDASI SERVER
+-- =========================================================
+
+local function ServerCocok(server, batas)
+
+	if not server then
+		return false
+	end
+
+	if not server.id then
+		return false
+	end
+
+	-- Jangan masuk server sekarang
+	if server.id == game.JobId then
+		return false
+	end
+
+	-- Jangan mencoba server yang sudah dibuang
+	if ServerDibuang(server.id) then
+		return false
+	end
+
+	-- Data jumlah pemain harus valid
+	if type(server.playing) ~= "number" then
+		return false
+	end
+
+	-- BATAS UTAMA
+	if server.playing > batas then
+		return false
+	end
+
+	-- Pastikan server belum penuh
+	if type(server.maxPlayers) == "number" then
+
+		if server.playing >= server.maxPlayers then
+			return false
+		end
+
+	end
+
+	return true
+
+end
+
+-- =========================================================
+-- CARI SERVER
+-- =========================================================
+
+local function CariServer(batas)
+
+	local kandidat = {}
+
+	local cursor = nil
+	local halaman = 0
+
+	repeat
+
+		local data = AmbilServer(cursor)
+
+		if not data then
+			return nil
+		end
+
+		halaman += 1
+
+		for _, server in ipairs(data.data) do
+
+			if ServerCocok(server, batas) then
+
+				table.insert(kandidat, server)
+
+			end
+
+		end
+
+		cursor = data.nextPageCursor
+
+		if cursor then
+			task.wait(JEDA_HALAMAN)
+		end
+
+	until not cursor or halaman >= MAKS_HALAMAN
+
+	-- Tidak ada kandidat
+	if #kandidat == 0 then
+		return nil
+	end
+
+	-- =====================================================
+	-- PILIH SERVER PALING SEPI
+	-- =====================================================
+
+	table.sort(kandidat, function(a, b)
+
+		if a.playing == b.playing then
+			return tostring(a.id) < tostring(b.id)
+		end
+
+		return a.playing < b.playing
+
+	end)
+
+	-- Kandidat pertama adalah yang paling sedikit pemain
+	return kandidat[1]
+
+end
+
+-- =========================================================
+-- TELEPORT FAILURE
+-- =========================================================
+
+TeleportService.TeleportInitFailed:Connect(
+	function(player, teleportResult, errorMessage)
+
+		if player ~= LocalPlayer then
+			return
+		end
+
+		teleportFailed = true
+
+		lastTeleportError =
+			tostring(errorMessage or teleportResult)
+
+	end
+)
+
+-- =========================================================
+-- TELEPORT
+-- =========================================================
+
+local function TeleportKeServer(server)
+
+	if not server or not server.id then
+		return false, "Server tidak valid"
+	end
+
+	-- Cek blacklist sekali lagi
+	if ServerDibuang(server.id) then
+		return false, "Server sudah dibuang"
+	end
+
+	teleportFailed = false
+	lastTeleportError = nil
+
+	totalDicoba += 1
+	UpdateInfo()
+
+	SetStatus(
+		"🚀 Teleport...\n"
+		.. tostring(server.playing)
+		.. "/"
+		.. tostring(server.maxPlayers or "?")
+		.. " pemain\n"
+		.. string.sub(server.id, 1, 12)
+		.. "..."
+	)
+
+	local success, errorMessage = pcall(function()
+
+		TeleportService:TeleportToPlaceInstance(
+			PlaceId,
+			server.id,
+			LocalPlayer
+		)
+
+	end)
+
+	-- Panggilan Teleport sendiri gagal
+	if not success then
+
+		return false, tostring(errorMessage)
+
+	end
+
+	-- Tunggu hasil TeleportInitFailed
+	for i = 1, 50 do
+
+		task.wait(0.1)
+
+		-- Teleport failure
+		if teleportFailed then
+
+			return false, lastTeleportError
+
+		end
+
+		-- Sudah benar-benar berada di JobId target
+		if game.JobId == server.id then
+
+			return true, nil
+
+		end
+
+	end
+
+	-- Tidak ada konfirmasi
+	if game.JobId == server.id then
+		return true, nil
+	end
+
+	return false, "Teleport tidak memberikan konfirmasi"
+
+end
+
+-- =========================================================
+-- MULAI
+-- =========================================================
+
+local function MulaiCari()
+
+	if sedangJalan then
+		return
+	end
+
+	local batas = tonumber(InputMaks.Text)
+
+	if not batas then
+
+		SetStatus("❌ Masukkan angka yang valid.")
+
+		return
+	end
+
+	batas = math.floor(batas)
+	batas = math.max(1, batas)
+
+	-- Reset statistik
+	totalDicoba = 0
+	totalGagal = 0
+
+	Blacklist = {}
+
+	sedangJalan = true
+
+	btnMulai.Active = false
+	btnMulai.Text = "🔎 MENCARI..."
+
+	UpdateInfo()
+
+	task.spawn(function()
+
+		while sedangJalan do
+
+			BersihkanBlacklist()
+			UpdateInfo()
+
+			SetStatus(
+				"🔎 Mencari server ≤ "
+				.. batas
+				.. " pemain..."
+			)
+
+			local target = CariServer(batas)
+
+			-- =================================================
+			-- TIDAK ADA TARGET
+			-- =================================================
+
+			if not target then
+
+				SetStatus(
+					"🔄 Tidak ada server ≤ "
+					.. batas
+					.. ".\nMencari halaman berikutnya..."
+				)
+
+				task.wait(JEDA_CARI_LAGI)
+
+				continue
+			end
+
+			-- =================================================
+			-- TARGET DITEMUKAN
+			-- =================================================
+
+			SetStatus(
+				"🎯 Target ditemukan!\n"
+				.. tostring(target.playing)
+				.. "/"
+				.. tostring(target.maxPlayers or "?")
+				.. " pemain"
+			)
+
+			task.wait(0.05)
+
+			local berhasil, alasan =
+				TeleportKeServer(target)
+
+			-- =================================================
+			-- BERHASIL
+			-- =================================================
+
+			if berhasil then
+
+				SetStatus(
+					"✅ BERHASIL!\n"
+					.. tostring(target.playing)
+					.. " pemain"
+				)
+
+				sedangJalan = false
+
+				return
+
+			end
+
+			-- =================================================
+			-- GAGAL -> BUANG SERVER
+			-- =================================================
+
+			BuangServer(
+				target.id,
+				alasan or "Teleport gagal"
+			)
+
+			task.wait(JEDA_CARI_LAGI)
+
+		end
+
+	end)
+
+end
+
+-- =========================================================
+-- BUTTON
+-- =========================================================
+
+btnMulai.MouseButton1Click:Connect(MulaiCari)
