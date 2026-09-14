@@ -9,28 +9,44 @@ local PlaceId = game.PlaceId
 -- CONFIG
 -- =========================================================
 
-local MAKS_HALAMAN = 40
+local TARGET_PLAYERS = 1
 
--- Jeda antar pencarian
-local JEDA_CARI_LAGI = 0.15
+-- Berapa kali server harus terlihat sebelum dipilih
+local MIN_OBSERVATIONS = 3
 
--- Jeda antar halaman API
-local JEDA_HALAMAN = 0.02
+-- Jeda antar observasi
+local OBSERVE_DELAY = 1
 
--- Berapa lama server gagal disimpan di blacklist
-local WAKTU_BLACKLIST = 60
+-- Maksimal halaman API setiap scan
+local MAX_PAGES = 10
+
+-- Jeda antar halaman
+local PAGE_DELAY = 0.05
+
+-- Jeda retry
+local RETRY_DELAY = 0.1
+
+-- Blacklist server yang gagal
+local BLACKLIST_TIME = 60
 
 -- =========================================================
 -- STATE
 -- =========================================================
 
-local sedangJalan = false
+local running = false
 
--- [JobId] = waktu blacklist berakhir
+-- [JobId] = {
+--     observations = number,
+--     firstSeen = os.clock(),
+--     lastSeen = os.clock()
+-- }
+local Candidates = {}
+
+-- [JobId] = expireTime
 local Blacklist = {}
 
-local totalDicoba = 0
-local totalGagal = 0
+local totalTried = 0
+local totalFailed = 0
 
 local teleportFailed = false
 local lastTeleportError = nil
@@ -42,22 +58,21 @@ local lastTeleportError = nil
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
-local LabelMaks = Instance.new("TextLabel")
-local InputMaks = Instance.new("TextBox")
+local Target = Instance.new("TextLabel")
 local Status = Instance.new("TextLabel")
 local Info = Instance.new("TextLabel")
-local btnMulai = Instance.new("TextButton")
+local StartButton = Instance.new("TextButton")
 
 ScreenGui.Name = "SERVER_FINDER"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
 
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
 MainFrame.BorderColor3 = Color3.fromRGB(255, 50, 50)
 MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
-MainFrame.Size = UDim2.new(0, 390, 0, 325)
+MainFrame.Size = UDim2.new(0, 390, 0, 300)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -65,139 +80,127 @@ Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 Title.Size = UDim2.new(1, 0, 0, 48)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "SERVER FINDER ZORXHUB"
+Title.Text = "SERVER FINDER byZorx"
 Title.TextColor3 = Color3.fromRGB(255, 255, 80)
-Title.TextSize = 14
+Title.TextSize = 15
 
-LabelMaks.Parent = MainFrame
-LabelMaks.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-LabelMaks.Position = UDim2.new(0, 15, 0, 65)
-LabelMaks.Size = UDim2.new(0, 165, 0, 42)
-LabelMaks.Font = Enum.Font.Gotham
-LabelMaks.Text = "Maksimal pemain:"
-LabelMaks.TextColor3 = Color3.fromRGB(220, 220, 220)
-LabelMaks.TextSize = 11
-LabelMaks.TextXAlignment = Enum.TextXAlignment.Left
-
-InputMaks.Parent = MainFrame
-InputMaks.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-InputMaks.Position = UDim2.new(0, 185, 0, 65)
-InputMaks.Size = UDim2.new(0, 175, 0, 42)
-InputMaks.Font = Enum.Font.GothamBold
-InputMaks.Text = "1"
-InputMaks.TextColor3 = Color3.fromRGB(255, 100, 50)
-InputMaks.TextSize = 16
-InputMaks.TextXAlignment = Enum.TextXAlignment.Center
-InputMaks.PlaceholderText = "Ketik angka..."
+Target.Parent = MainFrame
+Target.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Target.Position = UDim2.new(0, 15, 0, 65)
+Target.Size = UDim2.new(1, -30, 0, 40)
+Target.Font = Enum.Font.GothamBold
+Target.Text = "TARGET: 1 PLAYER + PERSISTENT"
+Target.TextColor3 = Color3.fromRGB(255, 100, 50)
+Target.TextSize = 12
 
 Status.Parent = MainFrame
 Status.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Status.Position = UDim2.new(0, 15, 0, 120)
-Status.Size = UDim2.new(1, -30, 0, 55)
+Status.Position = UDim2.new(0, 15, 0, 115)
+Status.Size = UDim2.new(1, -30, 0, 65)
 Status.Font = Enum.Font.Gotham
-Status.Text = "Masukkan batas pemain."
-Status.TextColor3 = Color3.fromRGB(255, 150, 100)
+Status.Text = "Tekan MULAI."
+Status.TextColor3 = Color3.fromRGB(255, 180, 120)
 Status.TextSize = 11
 Status.TextWrapped = true
 
 Info.Parent = MainFrame
 Info.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Info.Position = UDim2.new(0, 15, 0, 182)
-Info.Size = UDim2.new(1, -30, 0, 45)
+Info.Position = UDim2.new(0, 15, 0, 190)
+Info.Size = UDim2.new(1, -30, 0, 40)
 Info.Font = Enum.Font.Gotham
-Info.Text = "Bypas: 0 | Gagal: 0 | Dibuang: 0"
+Info.Text = "Dicoba: 0 | Gagal: 0 | Kandidat: 0"
 Info.TextColor3 = Color3.fromRGB(180, 180, 180)
 Info.TextSize = 11
-Info.TextWrapped = true
 
-btnMulai.Parent = MainFrame
-btnMulai.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
-btnMulai.Position = UDim2.new(0, 20, 0, 240)
-btnMulai.Size = UDim2.new(1, -40, 0, 55)
-btnMulai.Font = Enum.Font.GothamBold
-btnMulai.Text = "MULAI SERVER REJOIN"
-btnMulai.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnMulai.TextSize = 14
+StartButton.Parent = MainFrame
+StartButton.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
+StartButton.Position = UDim2.new(0, 20, 0, 245)
+StartButton.Size = UDim2.new(1, -40, 0, 45)
+StartButton.Font = Enum.Font.GothamBold
+StartButton.Text = "MULAI"
+StartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartButton.TextSize = 14
 
 -- =========================================================
--- STATUS
+-- GUI UPDATE
 -- =========================================================
-
-local function SetStatus(text)
-	Status.Text = text
-end
 
 local function UpdateInfo()
-	local jumlahBlacklist = 0
+
+	local blacklistCount = 0
+	local candidateCount = 0
 
 	for _ in pairs(Blacklist) do
-		jumlahBlacklist += 1
+		blacklistCount += 1
+	end
+
+	for _ in pairs(Candidates) do
+		candidateCount += 1
 	end
 
 	Info.Text =
-    "Bypas: "
-    .. totalDicoba
-    .. " | Gagal: "
-    .. totalGagal
-    .. " | Dibuang: "
-    .. jumlahBlacklist
+		"Dicoba: "
+		.. totalTried
+		.. " | Gagal: "
+		.. totalFailed
+		.. " | Kandidat: "
+		.. candidateCount
+		.. " | BL: "
+		.. blacklistCount
+end
+
+local function SetStatus(text)
+	Status.Text = text
 end
 
 -- =========================================================
 -- BLACKLIST
 -- =========================================================
 
-local function BersihkanBlacklist()
+local function CleanBlacklist()
 
-	local sekarang = os.clock()
+	local now = os.clock()
 
-	for jobId, expireTime in pairs(Blacklist) do
-
-		if sekarang >= expireTime then
+	for jobId, expire in pairs(Blacklist) do
+		if now >= expire then
 			Blacklist[jobId] = nil
 		end
-
 	end
 
 end
 
-local function BuangServer(jobId, alasan)
+local function IsBlacklisted(jobId)
+
+	CleanBlacklist()
+
+	return jobId and Blacklist[jobId] ~= nil
+end
+
+local function BlacklistServer(jobId, reason)
 
 	if not jobId then
 		return
 	end
 
-	Blacklist[jobId] = os.clock() + WAKTU_BLACKLIST
-
-	totalGagal += 1
+	Blacklist[jobId] = os.clock() + BLACKLIST_TIME
+	totalFailed += 1
 
 	UpdateInfo()
 
 	SetStatus(
-		"🗑️ Server dibuang\n"
+		"🗑️ SERVER DIBUANG\n"
 		.. string.sub(jobId, 1, 12)
 		.. "...\n"
-		.. tostring(alasan or "Teleport gagal")
+		.. tostring(reason or "Teleport gagal")
 	)
 
 end
 
-local function ServerDibuang(jobId)
-
-	BersihkanBlacklist()
-
-	if not jobId then
-		return true
-	end
-
-	return Blacklist[jobId] ~= nil
-end
-
 -- =========================================================
--- AMBIL SERVER
+-- GET SERVER PAGE
 -- =========================================================
 
-local function AmbilServer(cursor)
+local function GetServers(cursor)
 
 	local url =
 		"https://games.roblox.com/v1/games/"
@@ -205,10 +208,7 @@ local function AmbilServer(cursor)
 		.. "/servers/Public?sortOrder=Asc&limit=100"
 
 	if cursor then
-		url =
-			url
-			.. "&cursor="
-			.. HttpService:UrlEncode(cursor)
+		url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
 	end
 
 	local success, result = pcall(function()
@@ -223,87 +223,65 @@ local function AmbilServer(cursor)
 		return nil
 	end
 
-	if not result or not result.data then
+	if not result or type(result.data) ~= "table" then
 		return nil
 	end
 
 	return result
-
 end
 
 -- =========================================================
--- VALIDASI SERVER
+-- UPDATE CANDIDATES
 -- =========================================================
 
-local function ServerCocok(server, batas)
-
-	if not server then
-		return false
-	end
-
-	if not server.id then
-		return false
-	end
-
-	-- Jangan masuk server sekarang
-	if server.id == game.JobId then
-		return false
-	end
-
-	-- Jangan mencoba server yang sudah dibuang
-	if ServerDibuang(server.id) then
-		return false
-	end
-
-	-- Data jumlah pemain harus valid
-	if type(server.playing) ~= "number" then
-		return false
-	end
-
-	-- BATAS UTAMA
-	if server.playing > batas then
-		return false
-	end
-
-	-- Pastikan server belum penuh
-	if type(server.maxPlayers) == "number" then
-
-		if server.playing >= server.maxPlayers then
-			return false
-		end
-
-	end
-
-	return true
-
-end
-
--- =========================================================
--- CARI SERVER
--- =========================================================
-
-local function CariServer(batas)
-
-	local kandidat = {}
+local function ScanServers()
 
 	local cursor = nil
-	local halaman = 0
+	local page = 0
+
+	local seenThisScan = {}
 
 	repeat
 
-		local data = AmbilServer(cursor)
+		local data = GetServers(cursor)
 
 		if not data then
-			return nil
+			return false
 		end
 
-		halaman += 1
+		page += 1
 
 		for _, server in ipairs(data.data) do
 
-			if ServerCocok(server, batas) then
+			local jobId = server.id
+			local playing = server.playing
 
-				table.insert(kandidat, server)
+			if
+				jobId
+				and jobId ~= game.JobId
+				and playing == TARGET_PLAYERS
+				and not IsBlacklisted(jobId)
+			then
+
+				seenThisScan[jobId] = true
+
+				local candidate = Candidates[jobId]
+
+				if candidate then
+
+					candidate.observations += 1
+					candidate.lastSeen = os.clock()
+
+				else
+
+					Candidates[jobId] = {
+						observations = 1,
+						firstSeen = os.clock(),
+						lastSeen = os.clock(),
+						maxPlayers = server.maxPlayers or 0
+					}
+
+				end
 
 			end
 
@@ -312,244 +290,273 @@ local function CariServer(batas)
 		cursor = data.nextPageCursor
 
 		if cursor then
-			task.wait(JEDA_HALAMAN)
+			task.wait(PAGE_DELAY)
 		end
 
-	until not cursor or halaman >= MAKS_HALAMAN
+	until not cursor or page >= MAX_PAGES
 
-	-- Tidak ada kandidat
-	if #kandidat == 0 then
-		return nil
+	-- Kandidat yang tidak terlihat kali ini
+	-- dihapus karena tidak bisa dianggap persistent.
+	for jobId, candidate in pairs(Candidates) do
+
+		if not seenThisScan[jobId] then
+			Candidates[jobId] = nil
+		end
+
 	end
 
-	-- =====================================================
-	-- PILIH SERVER PALING SEPI
-	-- =====================================================
+	UpdateInfo()
 
-	table.sort(kandidat, function(a, b)
+	return true
+end
 
-		if a.playing == b.playing then
-			return tostring(a.id) < tostring(b.id)
+-- =========================================================
+-- FIND MOST PERSISTENT 1-PLAYER SERVER
+-- =========================================================
+
+local function FindBestServer()
+
+	local bestJobId = nil
+	local bestCandidate = nil
+
+	for jobId, candidate in pairs(Candidates) do
+
+		if candidate.observations >= MIN_OBSERVATIONS then
+
+			if
+				not bestCandidate
+				or candidate.observations > bestCandidate.observations
+				or (
+					candidate.observations == bestCandidate.observations
+					and candidate.firstSeen < bestCandidate.firstSeen
+				)
+			then
+
+				bestJobId = jobId
+				bestCandidate = candidate
+
+			end
+
 		end
 
-		return a.playing < b.playing
+	end
 
-	end)
-
-	-- Kandidat pertama adalah yang paling sedikit pemain
-	return kandidat[1]
-
+	return bestJobId, bestCandidate
 end
 
 -- =========================================================
 -- TELEPORT FAILURE
 -- =========================================================
 
-TeleportService.TeleportInitFailed:Connect(
-	function(player, teleportResult, errorMessage)
-
-		if player ~= LocalPlayer then
-			return
-		end
-
-		teleportFailed = true
-
-		lastTeleportError =
-			tostring(errorMessage or teleportResult)
-
-	end
+TeleportService.TeleportInitFailed:Connect(function(
+	player,
+	teleportResult,
+	errorMessage
 )
+
+	if player ~= LocalPlayer then
+		return
+	end
+
+	teleportFailed = true
+
+	lastTeleportError =
+		tostring(errorMessage or teleportResult)
+
+end)
 
 -- =========================================================
 -- TELEPORT
 -- =========================================================
 
-local function TeleportKeServer(server)
+local function TeleportToServer(jobId, candidate)
 
-	if not server or not server.id then
-		return false, "Server tidak valid"
+	if not jobId then
+		return false, "JobId tidak valid"
 	end
 
-	-- Cek blacklist sekali lagi
-	if ServerDibuang(server.id) then
-		return false, "Server sudah dibuang"
+	if IsBlacklisted(jobId) then
+		return false, "Server sudah blacklist"
 	end
 
 	teleportFailed = false
 	lastTeleportError = nil
 
-	totalDicoba += 1
+	totalTried += 1
 	UpdateInfo()
 
+	local duration =
+		os.clock() - (candidate.firstSeen or os.clock())
+
 	SetStatus(
-		"🚀 Teleport...\n"
-		.. tostring(server.playing)
-		.. "/"
-		.. tostring(server.maxPlayers or "?")
-		.. " pemain\n"
-		.. string.sub(server.id, 1, 12)
-		.. "..."
+		"🎯 SERVER PERSISTENT DITEMUKAN\n"
+		.. "Player: 1\n"
+		.. "Observasi: "
+		.. tostring(candidate.observations)
+		.. "\n"
+		.. "Terlihat: "
+		.. string.format("%.1f", duration)
+		.. " detik"
 	)
+
+	task.wait(0.05)
 
 	local success, errorMessage = pcall(function()
 
 		TeleportService:TeleportToPlaceInstance(
 			PlaceId,
-			server.id,
+			jobId,
 			LocalPlayer
 		)
 
 	end)
 
-	-- Panggilan Teleport sendiri gagal
 	if not success then
-
 		return false, tostring(errorMessage)
-
 	end
 
-	-- Tunggu hasil TeleportInitFailed
-	for i = 1, 50 do
+	-- Tunggu hasil teleport
+	for _ = 1, 50 do
 
 		task.wait(0.1)
 
-		-- Teleport failure
 		if teleportFailed then
-
 			return false, lastTeleportError
-
 		end
 
-		-- Sudah benar-benar berada di JobId target
-		if game.JobId == server.id then
-
-			return true, nil
-
+		if game.JobId == jobId then
+			return true
 		end
 
 	end
 
-	-- Tidak ada konfirmasi
-	if game.JobId == server.id then
-		return true, nil
+	if game.JobId == jobId then
+		return true
 	end
 
-	return false, "Teleport tidak memberikan konfirmasi"
-
+	return false, "Teleport tidak terkonfirmasi"
 end
 
 -- =========================================================
--- MULAI
+-- MAIN LOOP
 -- =========================================================
 
-local function MulaiCari()
+local function StartFinder()
 
-	if sedangJalan then
+	if running then
 		return
 	end
 
-	local batas = tonumber(InputMaks.Text)
+	running = true
 
-	if not batas then
+	totalTried = 0
+	totalFailed = 0
 
-		SetStatus("❌ Masukkan angka yang valid.")
-
-		return
-	end
-
-	batas = math.floor(batas)
-	batas = math.max(1, batas)
-
-	-- Reset statistik
-	totalDicoba = 0
-	totalGagal = 0
-
+	Candidates = {}
 	Blacklist = {}
 
-	sedangJalan = true
-
-	btnMulai.Active = false
-	btnMulai.Text = "🔎 MENCARI..."
+	StartButton.Active = false
+	StartButton.Text = "🔎 MENCARI..."
 
 	UpdateInfo()
 
 	task.spawn(function()
 
-		while sedangJalan do
+		while running do
 
-			BersihkanBlacklist()
-			UpdateInfo()
+			CleanBlacklist()
+
+			-- =============================================
+			-- OBSERVE
+			-- =============================================
 
 			SetStatus(
-				"🔎 Mencari server ≤ "
-				.. batas
-				.. " pemain..."
+				"🔎 Scan server 1 player...\n"
+				.. "Mengamati server yang bertahan..."
 			)
 
-			local target = CariServer(batas)
+			local success = ScanServers()
 
-			-- =================================================
-			-- TIDAK ADA TARGET
-			-- =================================================
-
-			if not target then
+			if not success then
 
 				SetStatus(
-					"🔄 Tidak ada server ≤ "
-					.. batas
-					.. ".\nMencari halaman berikutnya..."
+					"⚠️ Gagal mengambil daftar server.\n"
+					.. "Mencoba lagi..."
 				)
 
-				task.wait(JEDA_CARI_LAGI)
+				task.wait(RETRY_DELAY)
 
 				continue
 			end
 
-			-- =================================================
-			-- TARGET DITEMUKAN
-			-- =================================================
+			-- =============================================
+			-- CHECK PERSISTENT SERVER
+			-- =============================================
 
-			SetStatus(
-				"🎯 Target ditemukan!\n"
-				.. tostring(target.playing)
-				.. "/"
-				.. tostring(target.maxPlayers or "?")
-				.. " pemain"
-			)
+			local jobId, candidate =
+				FindBestServer()
 
-			task.wait(0.05)
+			if jobId and candidate then
 
-			local berhasil, alasan =
-				TeleportKeServer(target)
-
-			-- =================================================
-			-- BERHASIL
-			-- =================================================
-
-			if berhasil then
+				local duration =
+					os.clock() - candidate.firstSeen
 
 				SetStatus(
-					"✅ BERHASIL!\n"
-					.. tostring(target.playing)
-					.. " pemain"
+					"🎯 TARGET LOCKED!\n"
+					.. "1 PLAYER\n"
+					.. "Diamati "
+					.. candidate.observations
+					.. "x / "
+					.. string.format("%.1f", duration)
+					.. " detik"
 				)
 
-				sedangJalan = false
+				local successTeleport, reason =
+					TeleportToServer(jobId, candidate)
 
-				return
+				if successTeleport then
+
+					SetStatus(
+						"✅ BERHASIL REJOIN\n"
+						.. "Target: 1 PLAYER"
+					)
+
+					running = false
+
+					return
+				end
+
+				-- Teleport gagal
+				BlacklistServer(
+					jobId,
+					reason or "Teleport gagal"
+				)
+
+				Candidates[jobId] = nil
+
+				task.wait(RETRY_DELAY)
+
+			else
+
+				local candidateCount = 0
+
+				for _ in pairs(Candidates) do
+					candidateCount += 1
+				end
+
+				SetStatus(
+					"⏳ Belum ada server persistent.\n"
+					.. "Kandidat aktif: "
+					.. candidateCount
+					.. "\n"
+					.. "Observasi "
+					.. MIN_OBSERVATIONS
+					.. "x diperlukan."
+				)
+
+				task.wait(OBSERVE_DELAY)
 
 			end
-
-			-- =================================================
-			-- GAGAL -> BUANG SERVER
-			-- =================================================
-
-			BuangServer(
-				target.id,
-				alasan or "Teleport gagal"
-			)
-
-			task.wait(JEDA_CARI_LAGI)
 
 		end
 
@@ -561,4 +568,4 @@ end
 -- BUTTON
 -- =========================================================
 
-btnMulai.MouseButton1Click:Connect(MulaiCari)
+StartButton.MouseButton1Click:Connect(StartFinder)
