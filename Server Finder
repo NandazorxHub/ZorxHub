@@ -9,199 +9,819 @@ local PlaceId = game.PlaceId
 -- CONFIG
 -- =========================================================
 
-local TARGET_PLAYERS = 1
-
--- Berapa kali server harus terlihat sebelum dipilih
-local MIN_OBSERVATIONS = 3
-
--- Jeda antar observasi
-local OBSERVE_DELAY = 1
-
--- Maksimal halaman API setiap scan
-local MAX_PAGES = 10
-
--- Jeda antar halaman
+local TARGET_EXACT = 1
 local PAGE_DELAY = 0.05
-
--- Jeda retry
-local RETRY_DELAY = 0.1
-
--- Blacklist server yang gagal
-local BLACKLIST_TIME = 60
+local MAX_PAGES = 12
+local BLACKLIST_DURATION = 12
+local MAX_DISPLAY_SERVERS = 25
+local AUTO_SCAN_DELAY = 1
 
 -- =========================================================
--- STATE
+-- DATA
 -- =========================================================
 
 local running = false
+local teleporting = false
 
--- [JobId] = {
---     observations = number,
---     firstSeen = os.clock(),
---     lastSeen = os.clock()
--- }
 local Candidates = {}
-
--- [JobId] = expireTime
 local Blacklist = {}
 
-local totalTried = 0
-local totalFailed = 0
-
-local teleportFailed = false
-local lastTeleportError = nil
+local selectedServer = nil
+local totalTry = 0
+local totalOK = 0
 
 -- =========================================================
 -- GUI
 -- =========================================================
 
 local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local Target = Instance.new("TextLabel")
-local Status = Instance.new("TextLabel")
-local Info = Instance.new("TextLabel")
-local StartButton = Instance.new("TextButton")
-
-ScreenGui.Name = "SERVER_FINDER"
+ScreenGui.Name = "KUNCI_1P"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = game.CoreGui
 
+local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-MainFrame.BorderColor3 = Color3.fromRGB(255, 50, 50)
-MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
-MainFrame.Size = UDim2.new(0, 390, 0, 300)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.04, 0)
+MainFrame.Size = UDim2.new(0, 430, 0, 555)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
-Title.Parent = MainFrame
-Title.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-Title.Size = UDim2.new(1, 0, 0, 48)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "SERVER FINDER byZorx"
-Title.TextColor3 = Color3.fromRGB(255, 255, 80)
-Title.TextSize = 15
+-- Mengecilkan seluruh UI
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = MainFrame
+UIScale.Scale = 0.8
 
-Target.Parent = MainFrame
-Target.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Target.Position = UDim2.new(0, 15, 0, 65)
-Target.Size = UDim2.new(1, -30, 0, 40)
-Target.Font = Enum.Font.GothamBold
-Target.Text = "TARGET: 1 PLAYER + PERSISTENT"
-Target.TextColor3 = Color3.fromRGB(255, 100, 50)
-Target.TextSize = 12
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
-Status.Parent = MainFrame
-Status.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Status.Position = UDim2.new(0, 15, 0, 115)
-Status.Size = UDim2.new(1, -30, 0, 65)
-Status.Font = Enum.Font.Gotham
-Status.Text = "Tekan MULAI."
-Status.TextColor3 = Color3.fromRGB(255, 180, 120)
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = MainFrame
+Stroke.Color = Color3.fromRGB(255, 35, 85)
+Stroke.Transparency = 0.25
+
+-- =========================================================
+-- HEADER
+-- =========================================================
+
+local Header = Instance.new("Frame")
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 58)
+
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Parent = Header
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Position = UDim2.new(0, 18, 0, 7)
+HeaderTitle.Size = UDim2.new(1, -36, 0, 25)
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.Text = "SERVER FINDER"
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 55, 100)
+HeaderTitle.TextSize = 18
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local HeaderSub = Instance.new("TextLabel")
+HeaderSub.Parent = Header
+HeaderSub.BackgroundTransparency = 1
+HeaderSub.Position = UDim2.new(0, 18, 0, 31)
+HeaderSub.Size = UDim2.new(1, -36, 0, 18)
+HeaderSub.Font = Enum.Font.Gotham
+HeaderSub.Text = "EXACTLY 1 PLAYER • MANUAL / AUTO"
+HeaderSub.TextColor3 = Color3.fromRGB(140, 140, 150)
+HeaderSub.TextSize = 9
+HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+
+-- =========================================================
+-- STATUS
+-- =========================================================
+
+local StatusBox = Instance.new("Frame")
+StatusBox.Parent = MainFrame
+StatusBox.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+StatusBox.BorderSizePixel = 0
+StatusBox.Position = UDim2.new(0, 15, 0, 70)
+StatusBox.Size = UDim2.new(1, -30, 0, 58)
+
+Instance.new("UICorner", StatusBox).CornerRadius = UDim.new(0, 8)
+
+local Status = Instance.new("TextLabel")
+Status.Parent = StatusBox
+Status.BackgroundTransparency = 1
+Status.Position = UDim2.new(0, 12, 0, 6)
+Status.Size = UDim2.new(1, -24, 1, -12)
+Status.Font = Enum.Font.GothamMedium
+Status.Text = "READY\nPilih mode di bawah"
+Status.TextColor3 = Color3.fromRGB(255, 90, 125)
 Status.TextSize = 11
 Status.TextWrapped = true
 
+-- =========================================================
+-- INFO
+-- =========================================================
+
+local Info = Instance.new("TextLabel")
 Info.Parent = MainFrame
-Info.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Info.Position = UDim2.new(0, 15, 0, 190)
-Info.Size = UDim2.new(1, -30, 0, 40)
+Info.BackgroundTransparency = 1
+Info.Position = UDim2.new(0, 18, 0, 137)
+Info.Size = UDim2.new(1, -36, 0, 20)
 Info.Font = Enum.Font.Gotham
-Info.Text = "Dicoba: 0 | Gagal: 0 | Kandidat: 0"
-Info.TextColor3 = Color3.fromRGB(180, 180, 180)
-Info.TextSize = 11
-
-StartButton.Parent = MainFrame
-StartButton.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
-StartButton.Position = UDim2.new(0, 20, 0, 245)
-StartButton.Size = UDim2.new(1, -40, 0, 45)
-StartButton.Font = Enum.Font.GothamBold
-StartButton.Text = "MULAI"
-StartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-StartButton.TextSize = 14
+Info.Text = "Dicoba: 0   •   Berhasil: 0   •   Server: 0"
+Info.TextColor3 = Color3.fromRGB(155, 155, 165)
+Info.TextSize = 10
+Info.TextXAlignment = Enum.TextXAlignment.Left
 
 -- =========================================================
--- GUI UPDATE
+-- SERVER LIST TITLE
 -- =========================================================
 
-local function UpdateInfo()
+local ListTitle = Instance.new("TextLabel")
+ListTitle.Parent = MainFrame
+ListTitle.BackgroundTransparency = 1
+ListTitle.Position = UDim2.new(0, 18, 0, 160)
+ListTitle.Size = UDim2.new(1, -36, 0, 22)
+ListTitle.Font = Enum.Font.GothamBold
+ListTitle.Text = "SERVER LIST"
+ListTitle.TextColor3 = Color3.fromRGB(225, 225, 230)
+ListTitle.TextSize = 11
+ListTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-	local blacklistCount = 0
-	local candidateCount = 0
+-- =========================================================
+-- SERVER LIST
+-- =========================================================
 
-	for _ in pairs(Blacklist) do
-		blacklistCount += 1
-	end
+local ServerList = Instance.new("ScrollingFrame")
+ServerList.Parent = MainFrame
+ServerList.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+ServerList.BorderSizePixel = 0
+ServerList.Position = UDim2.new(0, 15, 0, 185)
+ServerList.Size = UDim2.new(1, -30, 0, 205)
+ServerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ServerList.ScrollBarThickness = 3
+ServerList.ScrollBarImageColor3 = Color3.fromRGB(255, 45, 90)
 
-	for _ in pairs(Candidates) do
-		candidateCount += 1
-	end
+Instance.new("UICorner", ServerList).CornerRadius = UDim.new(0, 8)
 
-	Info.Text =
-		"Dicoba: "
-		.. totalTried
-		.. " | Gagal: "
-		.. totalFailed
-		.. " | Kandidat: "
-		.. candidateCount
-		.. " | BL: "
-		.. blacklistCount
-end
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Parent = ServerList
+ListLayout.Padding = UDim.new(0, 5)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local ListPadding = Instance.new("UIPadding")
+ListPadding.Parent = ServerList
+ListPadding.PaddingTop = UDim.new(0, 6)
+ListPadding.PaddingBottom = UDim.new(0, 6)
+ListPadding.PaddingLeft = UDim.new(0, 6)
+ListPadding.PaddingRight = UDim.new(0, 6)
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	ServerList.CanvasSize = UDim2.new(
+		0,
+		0,
+		0,
+		ListLayout.AbsoluteContentSize.Y + 12
+	)
+end)
+
+-- =========================================================
+-- BUTTON: SCAN MANUAL
+-- =========================================================
+
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Parent = MainFrame
+ScanBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+ScanBtn.BorderSizePixel = 0
+ScanBtn.Position = UDim2.new(0, 15, 1, -122)
+ScanBtn.Size = UDim2.new(0.5, -20, 0, 43)
+ScanBtn.Font = Enum.Font.GothamBold
+ScanBtn.Text = "🔎  SCAN"
+ScanBtn.TextColor3 = Color3.new(1, 1, 1)
+ScanBtn.TextSize = 11
+
+Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
+
+-- =========================================================
+-- BUTTON: AUTO JOIN
+-- =========================================================
+
+local AutoBtn = Instance.new("TextButton")
+AutoBtn.Parent = MainFrame
+AutoBtn.BackgroundColor3 = Color3.fromRGB(80, 55, 25)
+AutoBtn.BorderSizePixel = 0
+AutoBtn.Position = UDim2.new(0.5, 5, 1, -122)
+AutoBtn.Size = UDim2.new(0.5, -20, 0, 43)
+AutoBtn.Font = Enum.Font.GothamBold
+AutoBtn.Text = "⚡ AUTO JOIN"
+AutoBtn.TextColor3 = Color3.new(1, 1, 1)
+AutoBtn.TextSize = 11
+
+Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 8)
+
+-- =========================================================
+-- BUTTON: JOIN SELECTED
+-- =========================================================
+
+local JoinBtn = Instance.new("TextButton")
+JoinBtn.Parent = MainFrame
+JoinBtn.BackgroundColor3 = Color3.fromRGB(225, 35, 85)
+JoinBtn.BorderSizePixel = 0
+JoinBtn.Position = UDim2.new(0, 15, 1, -72)
+JoinBtn.Size = UDim2.new(1, -30, 0, 40)
+JoinBtn.Font = Enum.Font.GothamBold
+JoinBtn.Text = "JOIN SERVER YANG DIPILIH"
+JoinBtn.TextColor3 = Color3.new(1, 1, 1)
+JoinBtn.TextSize = 11
+
+Instance.new("UICorner", JoinBtn).CornerRadius = UDim.new(0, 8)
+
+-- =========================================================
+-- SELECTED LABEL
+-- =========================================================
+
+local SelectedLabel = Instance.new("TextLabel")
+SelectedLabel.Parent = MainFrame
+SelectedLabel.BackgroundTransparency = 1
+SelectedLabel.Position = UDim2.new(0, 18, 1, -48)
+SelectedLabel.Size = UDim2.new(1, -36, 0, 18)
+SelectedLabel.Font = Enum.Font.Gotham
+SelectedLabel.Text = "Belum memilih server"
+SelectedLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+SelectedLabel.TextSize = 9
+SelectedLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- =========================================================
+-- UTILITY
+-- =========================================================
 
 local function SetStatus(text)
 	Status.Text = text
 end
 
--- =========================================================
--- BLACKLIST
--- =========================================================
+local function UpdateInfo()
+	local count = 0
+
+	for _ in pairs(Candidates) do
+		count += 1
+	end
+
+	Info.Text =
+		"Dicoba: " ..
+		totalTry ..
+		"   •   Berhasil: " ..
+		totalOK ..
+		"   •   Server: " ..
+		count
+end
 
 local function CleanBlacklist()
-
 	local now = os.clock()
 
-	for jobId, expire in pairs(Blacklist) do
+	for jid, expire in pairs(Blacklist) do
 		if now >= expire then
-			Blacklist[jobId] = nil
+			Blacklist[jid] = nil
+		end
+	end
+end
+
+local function IsBlacklisted(jid)
+	return Blacklist[jid] ~= nil
+end
+
+local function ClearServerList()
+	for _, child in ipairs(ServerList:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+end
+
+-- =========================================================
+-- SELECT SERVER
+-- =========================================================
+
+local function SelectServer(jid, row)
+	selectedServer = jid
+
+	for _, child in ipairs(ServerList:GetChildren()) do
+		if child:IsA("Frame") then
+			local stroke = child:FindFirstChild("SelectStroke")
+
+			if stroke then
+				stroke.Transparency = 1
+			end
 		end
 	end
 
-end
+	local stroke = row:FindFirstChild("SelectStroke")
 
-local function IsBlacklisted(jobId)
-
-	CleanBlacklist()
-
-	return jobId and Blacklist[jobId] ~= nil
-end
-
-local function BlacklistServer(jobId, reason)
-
-	if not jobId then
-		return
+	if stroke then
+		stroke.Transparency = 0
 	end
 
-	Blacklist[jobId] = os.clock() + BLACKLIST_TIME
-	totalFailed += 1
+	SelectedLabel.Text =
+		"SELECTED: " ..
+		string.sub(tostring(jid), 1, 18)
 
+	SelectedLabel.TextColor3 =
+		Color3.fromRGB(255, 90, 125)
+
+	JoinBtn.BackgroundColor3 =
+		Color3.fromRGB(225, 35, 85)
+end
+
+-- =========================================================
+-- ADD SERVER
+-- =========================================================
+
+local function AddServer(jid)
+	local Row = Instance.new("Frame")
+	Row.Parent = ServerList
+	Row.BackgroundColor3 = Color3.fromRGB(23, 23, 29)
+	Row.BorderSizePixel = 0
+	Row.Size = UDim2.new(1, -2, 0, 55)
+
+	Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 7)
+
+	local SelectStroke = Instance.new("UIStroke")
+	SelectStroke.Name = "SelectStroke"
+	SelectStroke.Parent = Row
+	SelectStroke.Color = Color3.fromRGB(255, 45, 90)
+	SelectStroke.Thickness = 1
+	SelectStroke.Transparency = 1
+
+	local Indicator = Instance.new("Frame")
+	Indicator.Parent = Row
+	Indicator.BackgroundColor3 = Color3.fromRGB(45, 220, 120)
+	Indicator.BorderSizePixel = 0
+	Indicator.Position = UDim2.new(0, 9, 0.5, -8)
+	Indicator.Size = UDim2.new(0, 4, 0, 16)
+
+	Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
+
+	local ServerText = Instance.new("TextLabel")
+	ServerText.Parent = Row
+	ServerText.BackgroundTransparency = 1
+	ServerText.Position = UDim2.new(0, 23, 0, 7)
+	ServerText.Size = UDim2.new(1, -35, 0, 19)
+	ServerText.Font = Enum.Font.GothamBold
+	ServerText.Text = "SERVER • 1 PLAYER"
+	ServerText.TextColor3 = Color3.fromRGB(235, 235, 240)
+	ServerText.TextSize = 10
+	ServerText.TextXAlignment = Enum.TextXAlignment.Left
+
+	local JobText = Instance.new("TextLabel")
+	JobText.Parent = Row
+	JobText.BackgroundTransparency = 1
+	JobText.Position = UDim2.new(0, 23, 0, 29)
+	JobText.Size = UDim2.new(1, -35, 0, 15)
+	JobText.Font = Enum.Font.Gotham
+	JobText.Text =
+		"ID: " ..
+		string.sub(tostring(jid), 1, 20)
+	JobText.TextColor3 = Color3.fromRGB(125, 125, 135)
+	JobText.TextSize = 8
+	JobText.TextXAlignment = Enum.TextXAlignment.Left
+
+	local SelectButton = Instance.new("TextButton")
+	SelectButton.Parent = Row
+	SelectButton.BackgroundTransparency = 1
+	SelectButton.Size = UDim2.new(1, 0, 1, 0)
+	SelectButton.Text = ""
+
+	SelectButton.MouseButton1Click:Connect(function()
+		if not teleporting then
+			SelectServer(jid, Row)
+		end
+	end)
+end
+
+-- =========================================================
+-- UPDATE LIST
+-- =========================================================
+
+local function UpdateServerList()
+	ClearServerList()
+
+	local count = 0
+
+	for jid in pairs(Candidates) do
+		if count >= MAX_DISPLAY_SERVERS then
+			break
+		end
+
+		if not IsBlacklisted(jid) then
+			AddServer(jid)
+			count += 1
+		end
+	end
+
+	UpdateInfo()
+end
+
+-- =========================================================
+-- FETCH
+-- =========================================================
+
+local function FetchServers(cursor)
+	local url =
+		"https://games.roblox.com/v1/games/" ..
+		PlaceId ..
+		"/servers/Public?sortOrder=Asc&limit=100"
+
+	if cursor then
+		url ..=
+			"&cursor=" ..
+			HttpService:UrlEncode(cursor)
+	end
+
+	local ok, result = pcall(function()
+		return HttpService:JSONDecode(
+			game:HttpGet(url)
+		)
+	end)
+
+	if not ok or not result or not result.data then
+		return nil
+	end
+
+	return result
+end
+
+-- =========================================================
+-- SCAN
+-- =========================================================
+
+local function Scan()
+	Candidates = {}
+	selectedServer = nil
+
+	SelectedLabel.Text = "Belum memilih server"
+	SelectedLabel.TextColor3 =
+		Color3.fromRGB(145, 145, 155)
+
+	JoinBtn.Text = "JOIN SERVER YANG DIPILIH"
+	JoinBtn.BackgroundColor3 =
+		Color3.fromRGB(70, 70, 80)
+
+	ClearServerList()
+
+	local cursor = nil
+	local page = 0
+
+	repeat
+		local data = FetchServers(cursor)
+
+		if not data then
+			return false
+		end
+
+		page += 1
+
+		for _, server in ipairs(data.data) do
+			local jid = server.id
+			local players = server.playing
+
+			if jid
+				and jid ~= game.JobId
+				and players == TARGET_EXACT
+				and not IsBlacklisted(jid)
+			then
+				Candidates[jid] = {
+					firstSeen = os.clock(),
+					count = 1,
+					lastCheck = os.clock()
+				}
+			end
+		end
+
+		cursor = data.nextPageCursor
+
+		if cursor and page < MAX_PAGES then
+			task.wait(PAGE_DELAY)
+		end
+
+	until not cursor or page >= MAX_PAGES
+
+	UpdateServerList()
+
+	local count = 0
+
+	for _ in pairs(Candidates) do
+		count += 1
+	end
+
+	if count > 0 then
+		SetStatus(
+			"✅ DITEMUKAN " ..
+			count ..
+			" SERVER\n" ..
+			"Pilih server atau gunakan AUTO JOIN"
+		)
+	else
+		SetStatus(
+			"⏳ TIDAK ADA SERVER 1 ORANG\n" ..
+			"Coba scan lagi"
+		)
+	end
+
+	return count > 0
+end
+
+-- =========================================================
+-- TELEPORT
+-- =========================================================
+
+local function TeleportToServer(jid)
+	if not jid or IsBlacklisted(jid) then
+		return false
+	end
+
+	teleporting = true
+
+	totalTry += 1
 	UpdateInfo()
 
 	SetStatus(
-		"🗑️ SERVER DIBUANG\n"
-		.. string.sub(jobId, 1, 12)
-		.. "...\n"
-		.. tostring(reason or "Teleport gagal")
+		"🚀 JOINING SERVER...\n" ..
+		"Server: " ..
+		string.sub(tostring(jid), 1, 18)
 	)
 
+	local failed = false
+	local errorMessage
+
+	local connection
+
+	connection = TeleportService.TeleportInitFailed:Connect(
+		function(player, _, err)
+			if player == LocalPlayer then
+				failed = true
+				errorMessage = tostring(err)
+
+				if connection then
+					connection:Disconnect()
+					connection = nil
+				end
+			end
+		end
+	)
+
+	local ok, err = pcall(function()
+		TeleportService:TeleportToPlaceInstance(
+			PlaceId,
+			jid,
+			LocalPlayer
+		)
+	end)
+
+	if not ok then
+		if connection then
+			connection:Disconnect()
+		end
+
+		teleporting = false
+
+		Blacklist[jid] =
+			os.clock() + BLACKLIST_DURATION
+
+		SetStatus(
+			"❌ TELEPORT GAGAL\n" ..
+			tostring(err)
+		)
+
+		return false
+	end
+
+	for _ = 1, 50 do
+		task.wait(0.1)
+
+		if failed then
+			if connection then
+				connection:Disconnect()
+			end
+
+			teleporting = false
+
+			Blacklist[jid] =
+				os.clock() + BLACKLIST_DURATION
+
+			SetStatus(
+				"❌ GAGAL JOIN\n" ..
+				tostring(errorMessage or "server berubah")
+			)
+
+			return false
+		end
+
+		if game.JobId == jid then
+			if connection then
+				connection:Disconnect()
+			end
+
+			totalOK += 1
+			UpdateInfo()
+
+			SetStatus(
+				"🎉 BERHASIL MASUK!\n" ..
+				"Server pilihan berhasil dimasuki"
+			)
+
+			return true
+		end
+	end
+
+	if connection then
+		connection:Disconnect()
+	end
+
+	teleporting = false
+
+	Blacklist[jid] =
+		os.clock() + BLACKLIST_DURATION
+
+	SetStatus("❌ TIMEOUT\nServer tidak dapat dimasuki")
+
+	return false
 end
 
 -- =========================================================
--- GET SERVER PAGE
+-- MANUAL JOIN
 -- =========================================================
 
-local function GetServers(cursor)
+JoinBtn.MouseButton1Click:Connect(function()
+	if running or teleporting then
+		return
+	end
 
-	local url =
-		"https://games.roblox.com/v1/games/"
-		
+	if not selectedServer then
+		SetStatus(
+			"⚠️ BELUM MEMILIH SERVER\n" ..
+			"Pilih server dari daftar"
+		)
+		return
+	end
+
+	if not Candidates[selectedServer] then
+		SetStatus("❌ Server sudah tidak tersedia")
+		return
+	end
+
+	JoinBtn.Active = false
+	ScanBtn.Active = false
+	AutoBtn.Active = false
+
+	TeleportToServer(selectedServer)
+
+	JoinBtn.Active = true
+	ScanBtn.Active = true
+	AutoBtn.Active = true
+end)
+
+-- =========================================================
+-- MANUAL SCAN
+-- =========================================================
+
+ScanBtn.MouseButton1Click:Connect(function()
+	if running or teleporting then
+		return
+	end
+
+	running = true
+
+	ScanBtn.Active = false
+	AutoBtn.Active = false
+	JoinBtn.Active = false
+
+	ScanBtn.Text = "🔎  SCANNING..."
+
+	SetStatus(
+		"🔎 SCANNING...\n" ..
+		"Mencari server dengan tepat 1 orang"
+	)
+
+	task.spawn(function()
+		Scan()
+
+		running = false
+
+		ScanBtn.Active = true
+		AutoBtn.Active = true
+		JoinBtn.Active = true
+
+		ScanBtn.Text = "🔄  SCAN LAGI"
+	end)
+end)
+
+-- =========================================================
+-- AUTO JOIN
+-- =========================================================
+
+local function AutoJoin()
+	if running or teleporting then
+		return
+	end
+
+	running = true
+	selectedServer = nil
+
+	ScanBtn.Active = false
+	AutoBtn.Active = false
+	JoinBtn.Active = false
+
+	AutoBtn.Text = "⛔ STOP AUTO"
+
+	SetStatus(
+		"⚡ AUTO JOIN AKTIF\n" ..
+		"Mencari dan masuk otomatis..."
+	)
+
+	task.spawn(function()
+		while running and not teleporting do
+			CleanBlacklist()
+
+			local found = Scan()
+
+			if found then
+				-- Ambil salah satu server yang ditemukan.
+				-- Tidak perlu user memilih.
+				local target = nil
+
+				for jid in pairs(Candidates) do
+					if not IsBlacklisted(jid) then
+						target = jid
+						break
+					end
+				end
+
+				if target then
+					SetStatus(
+						"⚡ AUTO JOIN\n" ..
+						"Server 1 player ditemukan"
+					)
+
+					local success = TeleportToServer(target)
+
+					if success then
+						running = false
+						return
+					end
+				end
+			end
+
+			if running and not teleporting then
+				SetStatus(
+					"🔎 AUTO JOIN...\n" ..
+					"Belum berhasil, mencari lagi..."
+				)
+
+				task.wait(AUTO_SCAN_DELAY)
+			end
+		end
+
+		running = false
+
+		ScanBtn.Active = true
+		AutoBtn.Active = true
+		JoinBtn.Active = true
+
+		AutoBtn.Text = "⚡ AUTO JOIN"
+	end)
+end
+
+AutoBtn.MouseButton1Click:Connect(function()
+	if teleporting then
+		return
+	end
+
+	if running then
+		running = false
+
+		ScanBtn.Active = true
+		AutoBtn.Active = true
+		JoinBtn.Active = true
+
+		AutoBtn.Text = "⚡ AUTO JOIN"
+
+		SetStatus(
+			"⏹ AUTO JOIN DIHENTIKAN\n" ..
+			"Server tidak akan dimasuki otomatis"
+		)
+
+		return
+	end
+
+	AutoJoin()
+end)
+
+-- =========================================================
+-- INITIAL
+-- =========================================================
+
+UpdateInfo()
+
+SetStatus(
+	"READY\n" ..
+	"SCAN = pilih manual • AUTO JOIN = langsung masuk"
+)
