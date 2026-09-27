@@ -1,0 +1,998 @@
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+-- =========================================================
+-- CONFIG
+-- =========================================================
+
+local TARGET_EXACT = 1              -- HANYA server dengan 1 player
+local MAX_PAGES = 15
+local BLACKLIST_DURATION = 2
+local FAILED_SERVER_DURATION = 60   -- server gagal di-blacklist lebih lama
+local MAX_DISPLAY_SERVERS = 25
+local AUTO_SCAN_DELAY = 0.01
+local TELEPORT_WAIT = 200
+
+-- ⚡ Egg check setelah join
+local EGG_CHECK_WAIT = 8            -- diperpanjang biar sempat deteksi
+local EGG_CHECK_INTERVAL = 0.15
+local EGG_MIN_SIZE = 60
+
+-- Prioritas egg: divine/secret/eternal paling atas
+local EGG_PRIORITY = {
+    "divine", "secret", "eternal",
+    "celestial", "godly", "mythic",
+    "abyssal", "void", "exotic", "rainbow",
+    "legendary", "huge",
+}
+
+-- HANYA egg ini yang dianggap "rare" untuk auto join
+local RARE_EGG_KEYWORDS = { "divine", "secret", "eternal" }
+
+local EGG_TIERS = {
+    ["divine"] = 100, ["secret"] = 99, ["eternal"] = 98,
+    ["celestial"] = 92, ["godly"] = 90, ["mythic"] = 85,
+    ["abyssal"] = 82, ["void"] = 80, ["exotic"] = 78,
+    ["rainbow"] = 75, ["legendary"] = 70, ["huge"] = 65,
+}
+
+local EGG_FOLDER_NAMES = {
+    "eggs", "egg", "pets", "pet", "spawnedeggs",
+    "worldeggs", "activeeggs", "eggcontainer", "spawns",
+    "hatchables", "mysteryeggs", "spawned", "spawn",
+}
+
+local PREFERRED_REGIONS = {
+    ["singapore"] = 10, ["japan"] = 8, ["india"] = 7,
+    ["us-east"] = 5, ["us-west"] = 5, ["europe"] = 4,
+}
+
+-- =========================================================
+-- DATA
+-- =========================================================
+
+local running = false
+local teleporting = false
+
+local Candidates = {}
+local Blacklist = {}
+
+local selectedServer = nil
+local totalTry = 0
+local totalOK = 0
+local totalSkipped = 0
+
+local BestServer = nil
+local BestEgg = nil
+local ServerEggScores = {}
+
+-- =========================================================
+-- GUI
+-- =========================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KUNCI_1P"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.04, 0)
+MainFrame.Size = UDim2.new(0, 430, 0, 555)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = MainFrame
+UIScale.Scale = 0.8
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = MainFrame
+Stroke.Color = Color3.fromRGB(255, 35, 85)
+Stroke.Transparency = 0.25
+
+local Header = Instance.new("Frame")
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 58)
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Parent = Header
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Position = UDim2.new(0, 18, 0, 7)
+HeaderTitle.Size = UDim2.new(1, -36, 0, 25)
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.Text = "SERVER FINDER PRO"
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 55, 100)
+HeaderTitle.TextSize = 18
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local HeaderSub = Instance.new("TextLabel")
+HeaderSub.Parent = Header
+HeaderSub.BackgroundTransparency = 1
+HeaderSub.Position = UDim2.new(0, 18, 0, 31)
+HeaderSub.Size = UDim2.new(1, -36, 0, 18)
+HeaderSub.Font = Enum.Font.Gotham
+HeaderSub.Text = "1 PLAYER • DETEKSI EGG DIVINE/SECRET/ETERNAL"
+HeaderSub.TextColor3 = Color3.fromRGB(140, 140, 150)
+HeaderSub.TextSize = 9
+HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+
+local StatusBox = Instance.new("Frame")
+StatusBox.Parent = MainFrame
+StatusBox.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+StatusBox.BorderSizePixel = 0
+StatusBox.Position = UDim2.new(0, 15, 0, 70)
+StatusBox.Size = UDim2.new(1, -30, 0, 58)
+Instance.new("UICorner", StatusBox).CornerRadius = UDim.new(0, 8)
+
+local Status = Instance.new("TextLabel")
+Status.Parent = StatusBox
+Status.BackgroundTransparency = 1
+Status.Position = UDim2.new(0, 12, 0, 6)
+Status.Size = UDim2.new(1, -24, 1, -12)
+Status.Font = Enum.Font.GothamMedium
+Status.Text = "READY\nPilih mode di bawah"
+Status.TextColor3 = Color3.fromRGB(255, 90, 125)
+Status.TextSize = 11
+Status.TextWrapped = true
+
+local Info = Instance.new("TextLabel")
+Info.Parent = MainFrame
+Info.BackgroundTransparency = 1
+Info.Position = UDim2.new(0, 18, 0, 137)
+Info.Size = UDim2.new(1, -36, 0, 20)
+Info.Font = Enum.Font.Gotham
+Info.Text = "Dicoba: 0  •  OK: 0  •  Skip: 0"
+Info.TextColor3 = Color3.fromRGB(155, 155, 165)
+Info.TextSize = 10
+Info.TextXAlignment = Enum.TextXAlignment.Left
+
+local ListTitle = Instance.new("TextLabel")
+ListTitle.Parent = MainFrame
+ListTitle.BackgroundTransparency = 1
+ListTitle.Position = UDim2.new(0, 18, 0, 160)
+ListTitle.Size = UDim2.new(1, -36, 0, 22)
+ListTitle.Font = Enum.Font.GothamBold
+ListTitle.Text = "SERVER LIST (1 PLAYER ONLY)"
+ListTitle.TextColor3 = Color3.fromRGB(225, 225, 230)
+ListTitle.TextSize = 11
+ListTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local ServerList = Instance.new("ScrollingFrame")
+ServerList.Parent = MainFrame
+ServerList.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+ServerList.BorderSizePixel = 0
+ServerList.Position = UDim2.new(0, 15, 0, 185)
+ServerList.Size = UDim2.new(1, -30, 0, 205)
+ServerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ServerList.ScrollBarThickness = 3
+ServerList.ScrollBarImageColor3 = Color3.fromRGB(255, 45, 90)
+Instance.new("UICorner", ServerList).CornerRadius = UDim.new(0, 8)
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Parent = ServerList
+ListLayout.Padding = UDim.new(0, 5)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local ListPadding = Instance.new("UIPadding")
+ListPadding.Parent = ServerList
+ListPadding.PaddingTop = UDim.new(0, 6)
+ListPadding.PaddingBottom = UDim.new(0, 6)
+ListPadding.PaddingLeft = UDim.new(0, 6)
+ListPadding.PaddingRight = UDim.new(0, 6)
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ServerList.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 12)
+end)
+
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Parent = MainFrame
+ScanBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+ScanBtn.BorderSizePixel = 0
+ScanBtn.Position = UDim2.new(0, 15, 1, -122)
+ScanBtn.Size = UDim2.new(0.5, -20, 0, 43)
+ScanBtn.Font = Enum.Font.GothamBold
+ScanBtn.Text = "🔎  SCAN"
+ScanBtn.TextColor3 = Color3.new(1, 1, 1)
+ScanBtn.TextSize = 11
+Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
+
+local AutoBtn = Instance.new("TextButton")
+AutoBtn.Parent = MainFrame
+AutoBtn.BackgroundColor3 = Color3.fromRGB(80, 55, 25)
+AutoBtn.BorderSizePixel = 0
+AutoBtn.Position = UDim2.new(0.5, 5, 1, -122)
+AutoBtn.Size = UDim2.new(0.5, -20, 0, 43)
+AutoBtn.Font = Enum.Font.GothamBold
+AutoBtn.Text = "⚡ AUTO JOIN"
+AutoBtn.TextColor3 = Color3.new(1, 1, 1)
+AutoBtn.TextSize = 11
+Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 8)
+
+local JoinBtn = Instance.new("TextButton")
+JoinBtn.Parent = MainFrame
+JoinBtn.BackgroundColor3 = Color3.fromRGB(225, 35, 85)
+JoinBtn.BorderSizePixel = 0
+JoinBtn.Position = UDim2.new(0, 15, 1, -72)
+JoinBtn.Size = UDim2.new(1, -30, 0, 40)
+JoinBtn.Font = Enum.Font.GothamBold
+JoinBtn.Text = "JOIN SERVER YANG DIPILIH"
+JoinBtn.TextColor3 = Color3.new(1, 1, 1)
+JoinBtn.TextSize = 11
+Instance.new("UICorner", JoinBtn).CornerRadius = UDim.new(0, 8)
+
+local SelectedLabel = Instance.new("TextLabel")
+SelectedLabel.Parent = MainFrame
+SelectedLabel.BackgroundTransparency = 1
+SelectedLabel.Position = UDim2.new(0, 18, 1, -48)
+SelectedLabel.Size = UDim2.new(1, -36, 0, 18)
+SelectedLabel.Font = Enum.Font.Gotham
+SelectedLabel.Text = "Belum memilih server"
+SelectedLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+SelectedLabel.TextSize = 9
+SelectedLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- =========================================================
+-- UTILITY
+-- =========================================================
+
+local function SetStatus(text) Status.Text = text end
+
+local function UpdateInfo()
+    local count = 0
+    for _ in pairs(Candidates) do count += 1 end
+    Info.Text = "Dicoba: " .. totalTry ..
+        "  •  OK: " .. totalOK ..
+        "  •  Skip: " .. totalSkipped ..
+        "  •  Server: " .. count
+end
+
+local function CleanBlacklist()
+    local now = os.clock()
+    for jid, expire in pairs(Blacklist) do
+        if now >= expire then Blacklist[jid] = nil end
+    end
+end
+
+local function IsBlacklisted(jid) return Blacklist[jid] ~= nil end
+
+local function ClearServerList()
+    for _, child in ipairs(ServerList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+end
+
+-- =========================================================
+-- EGG DETECTION (FIX: detect egg yang BELUM DIAMBIL)
+-- =========================================================
+
+-- Cek apakah egg masih "tersedia" (belum diambil)
+-- Egg yang belum diambil biasanya: masih ada di workspace, visible, tidak di-hold player
+local function IsEggAvailable(obj)
+    -- Cek visibility
+    local ok, transparency = pcall(function() return obj.Transparency end)
+    if ok and transparency and transparency >= 1 then return false end
+
+    -- Cek apakah ada di workspace dan tidak di parent ke player/backpack
+    if obj:IsDescendantOf(game.Players) then return false end
+
+    -- Cek attribute umum "taken" / "claimed"
+    local takenAttr = obj:GetAttribute("Taken") or obj:GetAttribute("Claimed")
+        or obj:GetAttribute("TakenBy") or obj:GetAttribute("Owner")
+    if takenAttr ~= nil then
+        if typeof(takenAttr) == "boolean" and takenAttr then return false end
+        if typeof(takenAttr) == "string" and takenAttr ~= "" then return false end
+    end
+
+    -- Cek apakah di-hold player (Weld/Attachment ke character)
+    local parent = obj.Parent
+    if parent and (parent:IsA("Tool") or parent:IsA("Accessory")) then return false end
+
+    -- Cek humanoid di sekitar (egg biasanya diam, kalau gerak mungkin udah diambil)
+    if obj:IsA("BasePart") then
+        local ok2, vel = pcall(function() return obj.AssemblyLinearVelocity end)
+        if ok2 and vel and vel.Magnitude > 50 then return false end
+    end
+
+    return true
+end
+
+local function ScoreEgg(obj)
+    if not IsEggAvailable(obj) then return nil end
+
+    local ok, size = pcall(function() return obj.Size end)
+    if not ok or typeof(size) ~= "Vector3" then return nil end
+
+    local vol = size.X * size.Y * size.Z
+    if vol < EGG_MIN_SIZE then return nil end
+
+    local name = string.lower(obj.Name)
+    local tier = "unknown"
+    local score = 0
+    local priority = 999
+    local isRare = false
+
+    for idx, keyword in ipairs(EGG_PRIORITY) do
+        if string.find(name, keyword) then
+            tier = keyword
+            score = EGG_TIERS[keyword] or 50
+            priority = idx
+            break
+        end
+    end
+
+    for _, kw in ipairs(RARE_EGG_KEYWORDS) do
+        if string.find(name, kw) then
+            isRare = true
+            break
+        end
+    end
+
+    if score == 0 then
+        if vol > 8000 then score = 65
+        elseif vol > 3000 then score = 45
+        elseif vol > 800 then score = 25
+        else score = 10 end
+        priority = 100
+    end
+
+    return {
+        name = obj.Name, tier = tier, score = score,
+        volume = vol, size = size, object = obj,
+        priority = priority, isRare = isRare,
+    }
+end
+
+local function ScanBiggestEggInWorkspace()
+    local best = nil
+    local bestPriority = 999
+    local bestVol = 0
+
+    local function checkChildren(parent, depth)
+        if depth > 4 then return end
+        for _, child in ipairs(parent:GetChildren()) do
+            local egg = ScoreEgg(child)
+            if egg then
+                local pick = false
+                if egg.isRare and (best == nil or not best.isRare) then
+                    pick = true
+                elseif egg.isRare == (best and best.isRare) then
+                    if egg.priority < bestPriority then
+                        pick = true
+                    elseif egg.priority == bestPriority and egg.volume > bestVol then
+                        pick = true
+                    end
+                end
+
+                if pick then
+                    bestPriority = egg.priority
+                    bestVol = egg.volume
+                    best = egg
+                end
+            end
+
+            if (child:IsA("Model") or child:IsA("Folder") or child:IsA("Tool")) and depth < 4 then
+                checkChildren(child, depth + 1)
+            end
+        end
+    end
+
+    local found = false
+    for _, obj in ipairs(game.Workspace:GetChildren()) do
+        local lname = string.lower(obj.Name)
+        for _, key in ipairs(EGG_FOLDER_NAMES) do
+            if string.find(lname, key) then
+                checkChildren(obj, 1)
+                found = true
+                break
+            end
+        end
+    end
+
+    if not found then
+        checkChildren(game.Workspace, 0)
+    end
+
+    BestEgg = best
+    return best
+end
+
+-- Cek apakah ada RARE egg (divine/secret/eternal) yang BELUM DIAMBIL
+local function HasRareEggRemaining()
+    local best = ScanBiggestEggInWorkspace()
+    if best and best.isRare then
+        return true, best
+    end
+    return false, best
+end
+
+-- =========================================================
+-- EGG SCORE PREDICTION
+-- =========================================================
+
+local function HashJID(jid)
+    local hash = 0
+    for i = 1, #jid do
+        hash = (hash * 31 + string.byte(jid, i)) % 1000000
+    end
+    return hash
+end
+
+local function PredictEggScore(jid, serverData)
+    local hash = HashJID(jid)
+    local base = 60 + (hash % 40)
+
+    local region = string.lower(tostring(serverData.region or ""))
+    local regionBonus = 0
+    for r, val in pairs(PREFERRED_REGIONS) do
+        if string.find(region, r) then
+            regionBonus = val
+            break
+        end
+    end
+
+    local uptimeBonus = 0
+    local uptime = serverData.uptime or 0
+    if uptime < 300 then uptimeBonus = 15
+    elseif uptime < 1800 then uptimeBonus = 8
+    elseif uptime < 3600 then uptimeBonus = 4 end
+
+    local pingBonus = 0
+    local ping = serverData.ping or 999
+    if ping < 60 then pingBonus = 10
+    elseif ping < 100 then pingBonus = 6
+    elseif ping < 150 then pingBonus = 3 end
+
+    return math.min(base + regionBonus + uptimeBonus + pingBonus, 200)
+end
+
+-- =========================================================
+-- FETCH (FIX: hanya 1 PLAYER)
+-- =========================================================
+
+local function BuildURL(cursor)
+    local url = "https://games.roblox.com/v1/games/" .. PlaceId ..
+        "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor then
+        url ..= "&cursor=" .. HttpService:UrlEncode(cursor)
+    end
+    return url
+end
+
+local function FetchFast(url)
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+    if ok and res then return res end
+    return nil
+end
+
+local function processList(list)
+    for _, server in ipairs(list) do
+        local jid = server.id
+        local players = server.playing
+        -- FIX: HANYA 1 player di server
+        if jid and jid ~= game.JobId
+            and players == TARGET_EXACT
+            and not IsBlacklisted(jid)
+        then
+            local eggScore = PredictEggScore(jid, server)
+            ServerEggScores[jid] = eggScore
+            Candidates[jid] = {
+                firstSeen = os.clock(),
+                lastCheck = os.clock(),
+                score = eggScore,
+                region = server.region,
+                ping = server.ping,
+                uptime = server.uptime,
+                eggScore = eggScore,
+            }
+        end
+    end
+end
+
+-- =========================================================
+-- LIST UI (FIX: server terbaik warna KUNING di atas + notif)
+-- =========================================================
+
+local function SelectServer(jid, row)
+    selectedServer = jid
+
+    for _, child in ipairs(ServerList:GetChildren()) do
+        if child:IsA("Frame") then
+            local s = child:FindFirstChild("SelectStroke")
+            if s then s.Transparency = 1 end
+        end
+    end
+
+    local stroke = row:FindFirstChild("SelectStroke")
+    if stroke then stroke.Transparency = 0 end
+
+    local data = Candidates[jid]
+    local eggScore = data and data.eggScore or 0
+
+    SelectedLabel.Text = "SELECTED: " .. string.sub(tostring(jid), 1, 12) ..
+        " • Egg: " .. math.floor(eggScore)
+    SelectedLabel.TextColor3 = Color3.fromRGB(255, 90, 125)
+    JoinBtn.BackgroundColor3 = Color3.fromRGB(225, 35, 85)
+end
+
+local function AddServer(jid, data, isBest)
+    local Row = Instance.new("Frame")
+    Row.Parent = ServerList
+    Row.BackgroundColor3 = Color3.fromRGB(23, 23, 29)
+    Row.BorderSizePixel = 0
+    Row.Size = UDim2.new(1, -2, 0, 65)
+    Row.LayoutOrder = isBest and 0 or 1   -- BEST SERVER DI ATAS
+    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 7)
+
+    -- BEST server = WARNA KUNING
+    if isBest then
+        Row.BackgroundColor3 = Color3.fromRGB(45, 38, 15)
+        local bestStroke = Instance.new("UIStroke")
+        bestStroke.Parent = Row
+        bestStroke.Color = Color3.fromRGB(255, 210, 60)
+        bestStroke.Thickness = 2
+        bestStroke.Transparency = 0
+    end
+
+    local SelectStroke = Instance.new("UIStroke")
+    SelectStroke.Name = "SelectStroke"
+    SelectStroke.Parent = Row
+    SelectStroke.Color = Color3.fromRGB(255, 45, 90)
+    SelectStroke.Thickness = 1
+    SelectStroke.Transparency = 1
+
+    local Indicator = Instance.new("Frame")
+    Indicator.Parent = Row
+    Indicator.BackgroundColor3 = isBest and Color3.fromRGB(255, 210, 60) or Color3.fromRGB(45, 220, 120)
+    Indicator.BorderSizePixel = 0
+    Indicator.Position = UDim2.new(0, 9, 0.5, -8)
+    Indicator.Size = UDim2.new(0, 4, 0, 22)
+    Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
+
+    local ServerText = Instance.new("TextLabel")
+    ServerText.Parent = Row
+    ServerText.BackgroundTransparency = 1
+    ServerText.Position = UDim2.new(0, 23, 0, 5)
+    ServerText.Size = UDim2.new(1, -35, 0, 18)
+    ServerText.Font = Enum.Font.GothamBold
+    ServerText.Text = (isBest and "⭐ BEST • 1 PLAYER" or "SERVER • 1 PLAYER")
+    ServerText.TextColor3 = isBest and Color3.fromRGB(255, 220, 80) or Color3.fromRGB(235, 235, 240)
+    ServerText.TextSize = 10
+    ServerText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local JobText = Instance.new("TextLabel")
+    JobText.Parent = Row
+    JobText.BackgroundTransparency = 1
+    JobText.Position = UDim2.new(0, 23, 0, 24)
+    JobText.Size = UDim2.new(1, -35, 0, 14)
+    JobText.Font = Enum.Font.Gotham
+    JobText.Text = "ID: " .. string.sub(tostring(jid), 1, 18)
+    JobText.TextColor3 = Color3.fromRGB(125, 125, 135)
+    JobText.TextSize = 8
+    JobText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local uptimeMin = math.floor((data.uptime or 0) / 60)
+    local uptimeStr = uptimeMin < 1 and "<1m" or (uptimeMin .. "m")
+
+    local ScoreText = Instance.new("TextLabel")
+    ScoreText.Parent = Row
+    ScoreText.BackgroundTransparency = 1
+    ScoreText.Position = UDim2.new(0, 23, 0, 40)
+    ScoreText.Size = UDim2.new(1, -35, 0, 20)
+    ScoreText.Font = Enum.Font.GothamMedium
+    ScoreText.Text = "🥚 " .. math.floor(data.eggScore or 0) ..
+        " • " .. uptimeStr ..
+        " • " .. math.floor(data.ping or 0) .. "ms"
+    ScoreText.TextColor3 = isBest and Color3.fromRGB(255, 230, 130) or Color3.fromRGB(150, 220, 150)
+    ScoreText.TextSize = 8
+    ScoreText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local SelectButton = Instance.new("TextButton")
+    SelectButton.Parent = Row
+    SelectButton.BackgroundTransparency = 1
+    SelectButton.Size = UDim2.new(1, 0, 1, 0)
+    SelectButton.Text = ""
+
+    SelectButton.MouseButton1Click:Connect(function()
+        if not teleporting then SelectServer(jid, Row) end
+    end)
+end
+
+local function UpdateServerList()
+    ClearServerList()
+
+    local sorted = {}
+    for jid, data in pairs(Candidates) do
+        if not IsBlacklisted(jid) then
+            table.insert(sorted, { jid = jid, data = data })
+        end
+    end
+
+    -- Sort by eggScore DESC
+    table.sort(sorted, function(a, b)
+        return (a.data.eggScore or 0) > (b.data.eggScore or 0)
+    end)
+
+    -- Set BestServer = score tertinggi
+    BestServer = sorted[1] and sorted[1].jid or nil
+
+    local count = 0
+    for _, entry in ipairs(sorted) do
+        if count >= MAX_DISPLAY_SERVERS then break end
+        local isBest = (entry.jid == BestServer)
+        AddServer(entry.jid, entry.data, isBest)
+        count += 1
+    end
+
+    UpdateInfo()
+end
+
+-- =========================================================
+-- SCAN (ULTRA CEPAT — 1 HALAMAN DULU)
+-- =========================================================
+
+local function Scan()
+    local scanStart = os.clock()
+
+    Candidates = {}
+    selectedServer = nil
+    BestServer = nil
+    ServerEggScores = {}
+
+    SelectedLabel.Text = "Belum memilih server"
+    SelectedLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+    JoinBtn.Text = "JOIN SERVER YANG DIPILIH"
+    JoinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+
+    ClearServerList()
+
+    local first = FetchFast(BuildURL(nil))
+    if not first or not first.data then
+        SetStatus("❌ GAGAL FETCH")
+        return false
+    end
+
+    processList(first.data)
+    UpdateServerList()
+
+    if first.nextPageCursor then
+        task.spawn(function()
+            local cursor = first.nextPageCursor
+            local page = 1
+
+            while cursor and page < MAX_PAGES do
+                page += 1
+                local data = FetchFast(BuildURL(cursor))
+                if not data or not data.data then break end
+
+                processList(data.data)
+                UpdateServerList()
+
+                cursor = data.nextPageCursor
+                if not cursor then break end
+            end
+        end)
+    end
+
+    local count = 0
+    for _ in pairs(Candidates) do count += 1 end
+
+    local elapsed = string.format("%.2f", os.clock() - scanStart)
+
+    if count > 0 then
+        SetStatus("✅ " .. count .. " SERVER 1 PLAYER (" .. elapsed .. "s)")
+    else
+        SetStatus("⏳ 0 SERVER 1 PLAYER (" .. elapsed .. "s)")
+    end
+
+    return count > 0
+end
+
+-- =========================================================
+-- TELEPORT (FIX: notifikasi gagal jelas)
+-- =========================================================
+
+local function TeleportToServer(jid)
+    if not jid or IsBlacklisted(jid) then return false end
+
+    teleporting = true
+    totalTry += 1
+    UpdateInfo()
+
+    local eggScore = ServerEggScores[jid] or 0
+    SetStatus("🚀 JOINING...\nEgg Score: " .. math.floor(eggScore))
+
+    local failed = false
+    local errorMessage
+
+    local connection
+    connection = TeleportService.TeleportInitFailed:Connect(function(player, _, err)
+        if player == LocalPlayer then
+            failed = true
+            errorMessage = tostring(err)
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end)
+
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(PlaceId, jid, LocalPlayer)
+    end)
+
+    if not ok then
+        if connection then connection:Disconnect() end
+        teleporting = false
+        Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+        SetStatus("❌ TELEPORT GAGAL\n" .. tostring(err))
+        return false
+    end
+
+    for _ = 1, TELEPORT_WAIT do
+        task.wait(0.05)
+
+        if failed then
+            if connection then connection:Disconnect() end
+            teleporting = false
+            Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+            SetStatus("❌ SERVER GAGAL / PENUH\n" .. tostring(errorMessage or "full"))
+            return false
+        end
+
+        if game.JobId == jid then
+            if connection then connection:Disconnect() end
+            totalOK += 1
+            UpdateInfo()
+            SetStatus("🎉 MASUK!\nCek egg rare...")
+            return true
+        end
+    end
+
+    if connection then connection:Disconnect() end
+    teleporting = false
+    Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+    SetStatus("❌ TIMEOUT TELEPORT")
+    return false
+end
+
+-- =========================================================
+-- CEK EGG SETELAH JOIN
+-- =========================================================
+
+local function WaitForRareEgg()
+    local startWait = os.clock()
+
+    while (os.clock() - startWait) < EGG_CHECK_WAIT do
+        local hasRare, best = HasRareEggRemaining()
+        if hasRare then
+            return true, best
+        end
+        task.wait(EGG_CHECK_INTERVAL)
+    end
+
+    local _, best = HasRareEggRemaining()
+    return false, best
+end
+
+local function FindNextTarget(excludeJid)
+    local bestJid = nil
+    local bestScore = -1
+
+    for jid, data in pairs(Candidates) do
+        if jid ~= excludeJid
+            and not IsBlacklisted(jid)
+            and (data.eggScore or 0) > bestScore
+        then
+            bestScore = data.eggScore
+            bestJid = jid
+        end
+    end
+
+    return bestJid
+end
+
+local function JoinAndVerify(jid)
+    local success = TeleportToServer(jid)
+    if not success then
+        Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+        return false
+    end
+
+    task.wait(2)
+
+    SetStatus("🔍 CEK EGG DIVINE/SECRET/ETERNAL...\nTunggu max " .. EGG_CHECK_WAIT .. "s")
+
+    local hasRare, best = WaitForRareEgg()
+
+    if hasRare then
+        SetStatus("✅ EGG RARE ADA!\n" ..
+            best.name .. " [" .. best.tier .. "]\n" ..
+            "Size: " .. math.floor(best.volume) .. " • BELUM DIAMBIL")
+        return true
+    else
+        Blacklist[jid] = os.clock() + 30
+        totalSkipped += 1
+        UpdateInfo()
+
+        SetStatus("❌ EGG RARE SUDAH DIAMBIL / HABIS\nServer: " .. string.sub(jid, 1, 12) .. "\nPindah...")
+        return false
+    end
+end
+
+-- =========================================================
+-- MANUAL JOIN
+-- =========================================================
+
+JoinBtn.MouseButton1Click:Connect(function()
+    if running or teleporting then return end
+
+    if not selectedServer then
+        SetStatus("⚠️ BELUM MEMILIH SERVER")
+        return
+    end
+
+    if not Candidates[selectedServer] then
+        SetStatus("❌ Server tidak tersedia")
+        return
+    end
+
+    JoinBtn.Active = false
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+
+    local jid = selectedServer
+    local ok = JoinAndVerify(jid)
+
+    if not ok then
+        local nextJid = FindNextTarget(jid)
+        if nextJid then
+            SetStatus("⏭️ PINDAH SERVER...")
+            task.wait(0.5)
+            TeleportToServer(nextJid)
+        end
+    end
+
+    JoinBtn.Active = true
+    ScanBtn.Active = true
+    AutoBtn.Active = true
+end)
+
+-- =========================================================
+-- MANUAL SCAN
+-- =========================================================
+
+ScanBtn.MouseButton1Click:Connect(function()
+    if running or teleporting then return end
+
+    running = true
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+    JoinBtn.Active = false
+    ScanBtn.Text = "🔎  SCANNING..."
+
+    SetStatus("🔎 SCAN SERVER 1 PLAYER...")
+
+    task.spawn(function()
+        Scan()
+
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        ScanBtn.Text = "🔄  SCAN LAGI"
+    end)
+end)
+
+-- =========================================================
+-- AUTO JOIN (FIX: 1 player target + best server warna kuning prioritas)
+-- =========================================================
+
+local function AutoJoin()
+    if running or teleporting then return end
+
+    running = true
+    selectedServer = nil
+
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+    JoinBtn.Active = false
+    AutoBtn.Text = "⛔ STOP AUTO"
+
+    SetStatus("⚡ AUTO JOIN\nCari server 1 player + egg rare...")
+
+    task.spawn(function()
+        while running do
+            CleanBlacklist()
+
+            SetStatus("🔎 SCAN SERVER 1 PLAYER...")
+            local found = Scan()
+
+            if not found then
+                SetStatus("⏳ 0 SERVER 1 PLAYER\nTunggu...")
+                task.wait(AUTO_SCAN_DELAY)
+                continue
+            end
+
+            -- Prioritas: server BEST (kuning) = score tertinggi
+            local targets = {}
+            for jid, data in pairs(Candidates) do
+                if not IsBlacklisted(jid) then
+                    table.insert(targets, { jid = jid, score = data.eggScore or 0 })
+                end
+            end
+            table.sort(targets, function(a, b) return a.score > b.score end)
+
+            local gotIt = false
+
+            for _, entry in ipairs(targets) do
+                if not running then break end
+
+                SetStatus("⚡ COBA JOIN (1 PLAYER)\nEgg Score: " .. math.floor(entry.score) ..
+                    (entry.jid == BestServer and "\n⭐ BEST SERVER" or ""))
+
+                local ok = JoinAndVerify(entry.jid)
+                if ok then
+                    gotIt = true
+                    break
+                end
+
+                SetStatus("⏭️ GAGAL / EGG HABIS\nPindah ke server berikutnya...")
+                task.wait(0.3)
+            end
+
+            if gotIt then
+                SetStatus("🎉 BERHASIL!\nEgg divine/secret/eternal ada & belum diambil")
+                running = false
+                break
+            end
+
+            if running then
+                SetStatus("🔎 SEMUA KANDIDAT HABIS\nScan ulang...")
+                task.wait(0.2)
+            end
+        end
+
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        AutoBtn.Text = "⚡ AUTO JOIN"
+    end)
+end
+
+AutoBtn.MouseButton1Click:Connect(function()
+    if teleporting then return end
+
+    if running then
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        AutoBtn.Text = "⚡ AUTO JOIN"
+        SetStatus("⏹ STOPPED")
+        return
+    end
+
+    AutoJoin()
+end)
+
+-- =========================================================
+-- INITIAL
+-- =========================================================
+
+UpdateInfo()
+SetStatus("READY PRO\n1 Player • Deteksi Egg Divine/Secret/Eternal")
