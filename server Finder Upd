@@ -1,0 +1,1360 @@
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+-- =========================================================
+-- ✅ CONFIG
+-- =========================================================
+
+local TARGET_EXACT = 1
+local MAX_PAGES = 15
+local BLACKLIST_DURATION = 2
+local FAILED_SERVER_DURATION = 90
+local MAX_DISPLAY_SERVERS = 25
+local AUTO_SCAN_DELAY = 3
+local TELEPORT_WAIT = 200
+
+local EGG_CHECK_WAIT = 12
+local EGG_CHECK_INTERVAL = 0.1
+
+local MIN_SIZE_TO_KEEP = 50
+
+-- 🛡️ ANTI-769/722 — TIDAK DIUBAH SAMA SEKALI
+local TELEPORT_COOLDOWN = 8
+local TELEPORT_COOLDOWN_AFTER_FAIL = 18
+local TELEPORT_COOLDOWN_AFTER_769 = 45
+local MAX_TELEPORT_PER_MINUTE = 4
+local MAX_TELEPORT_PER_5MIN = 15
+local TELEPORT_QUEUE_DELAY = 2.5
+local RETRY_SAME_SERVER_COOLDOWN = 120
+
+-- =========================================================
+-- ✅ TIER TELUR
+-- =========================================================
+
+local EGG_PRIORITY = {
+    "divine", "secret", "eternal",
+    "celestial", "godly", "mythic",
+    "abyssal", "void", "exotic", "rainbow",
+    "legendary", "huge", "big",
+}
+
+-- 🔒 LOCKED — 3 tier ini WAJIB MENANG
+local LOCKED_RARE = {
+    ["divine"] = 3,
+    ["secret"] = 2,
+    ["eternal"] = 1,
+}
+
+local EGG_FOLDER_NAMES = {
+    "eggs", "egg", "pets", "pet", "spawnedeggs",
+    "worldeggs", "activeeggs", "eggcontainer", "spawns",
+    "hatchables", "mysteryeggs", "spawned", "spawn",
+}
+
+local PREFERRED_REGIONS = {
+    ["singapore"] = 10, ["japan"] = 8, ["india"] = 7,
+    ["us-east"] = 5, ["us-west"] = 5, ["europe"] = 4,
+}
+
+-- =========================================================
+-- DATA
+-- =========================================================
+
+local running = false
+local teleporting = false
+
+local Candidates = {}
+local Blacklist = {}
+
+local selectedServer = nil
+local totalTry = 0
+local totalOK = 0
+local totalSkipped = 0
+
+local BestServer = nil
+local BestEgg = nil
+local ServerEggScores = {}
+
+local lastTeleportTime = 0
+local teleportHistory = {}
+local recentFailedServers = {}
+local TELEPORT_LOCK = false
+
+-- ✅ DATA SCAN SIZE ASLI PER SERVER
+local ServerScanResults = {}
+local BestEverServer = nil
+local BestEverSize = 0
+local CURRENT_TARGET_SIZE = 0
+
+-- =========================================================
+-- GUI
+-- =========================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KUNCI_1P"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.04, 0)
+MainFrame.Size = UDim2.new(0, 430, 0, 555)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = MainFrame
+UIScale.Scale = 0.8
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = MainFrame
+Stroke.Color = Color3.fromRGB(255, 35, 85)
+Stroke.Transparency = 0.25
+
+local Header = Instance.new("Frame")
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 58)
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Parent = Header
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Position = UDim2.new(0, 18, 0, 7)
+HeaderTitle.Size = UDim2.new(1, -36, 0, 25)
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.Text = "LOCK SPAWN DIVINE/SECRET/ETERNAL"
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 55, 100)
+HeaderTitle.TextSize = 13
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local HeaderSub = Instance.new("TextLabel")
+HeaderSub.Parent = Header
+HeaderSub.BackgroundTransparency = 1
+HeaderSub.Position = UDim2.new(0, 18, 0, 31)
+HeaderSub.Size = UDim2.new(1, -36, 0, 18)
+HeaderSub.Font = Enum.Font.Gotham
+HeaderSub.Text = "SIZE TERBESAR • TON • SCAN PER SERVER"
+HeaderSub.TextColor3 = Color3.fromRGB(140, 140, 150)
+HeaderSub.TextSize = 8
+HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+
+local StatusBox = Instance.new("Frame")
+StatusBox.Parent = MainFrame
+StatusBox.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+StatusBox.BorderSizePixel = 0
+StatusBox.Position = UDim2.new(0, 15, 0, 70)
+StatusBox.Size = UDim2.new(1, -30, 0, 58)
+Instance.new("UICorner", StatusBox).CornerRadius = UDim.new(0, 8)
+
+local Status = Instance.new("TextLabel")
+Status.Parent = StatusBox
+Status.BackgroundTransparency = 1
+Status.Position = UDim2.new(0, 12, 0, 6)
+Status.Size = UDim2.new(1, -24, 1, -12)
+Status.Font = Enum.Font.GothamMedium
+Status.Text = "SIAP ✅\nTunggu spawn divine/secret/eternal"
+Status.TextColor3 = Color3.fromRGB(255, 90, 125)
+Status.TextSize = 10
+Status.TextWrapped = true
+
+local Info = Instance.new("TextLabel")
+Info.Parent = MainFrame
+Info.BackgroundTransparency = 1
+Info.Position = UDim2.new(0, 18, 0, 137)
+Info.Size = UDim2.new(1, -36, 0, 20)
+Info.Font = Enum.Font.Gotham
+Info.Text = "Dicoba: 0  •  OK: 0  •  Skip: 0"
+Info.TextColor3 = Color3.fromRGB(155, 155, 165)
+Info.TextSize = 10
+Info.TextXAlignment = Enum.TextXAlignment.Left
+
+local ListTitle = Instance.new("TextLabel")
+ListTitle.Parent = MainFrame
+ListTitle.BackgroundTransparency = 1
+ListTitle.Position = UDim2.new(0, 18, 0, 160)
+ListTitle.Size = UDim2.new(1, -36, 0, 22)
+ListTitle.Font = Enum.Font.GothamBold
+ListTitle.Text = "SERVER — DIURUT SIZE TERBESAR"
+ListTitle.TextColor3 = Color3.fromRGB(225, 225, 230)
+ListTitle.TextSize = 11
+ListTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local ServerList = Instance.new("ScrollingFrame")
+ServerList.Parent = MainFrame
+ServerList.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+ServerList.BorderSizePixel = 0
+ServerList.Position = UDim2.new(0, 15, 0, 185)
+ServerList.Size = UDim2.new(1, -30, 0, 205)
+ServerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ServerList.ScrollBarThickness = 3
+ServerList.ScrollBarImageColor3 = Color3.fromRGB(255, 45, 90)
+Instance.new("UICorner", ServerList).CornerRadius = UDim.new(0, 8)
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Parent = ServerList
+ListLayout.Padding = UDim.new(0, 5)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local ListPadding = Instance.new("UIPadding")
+ListPadding.Parent = ServerList
+ListPadding.PaddingTop = UDim.new(0, 6)
+ListPadding.PaddingBottom = UDim.new(0, 6)
+ListPadding.PaddingLeft = UDim.new(0, 6)
+ListPadding.PaddingRight = UDim.new(0, 6)
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ServerList.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 12)
+end)
+
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Parent = MainFrame
+ScanBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+ScanBtn.BorderSizePixel = 0
+ScanBtn.Position = UDim2.new(0, 15, 1, -122)
+ScanBtn.Size = UDim2.new(0.5, -20, 0, 43)
+ScanBtn.Font = Enum.Font.GothamBold
+ScanBtn.Text = "🔎 SCAN RNG WANGI"
+ScanBtn.TextColor3 = Color3.new(1, 1, 1)
+ScanBtn.TextSize = 11
+Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
+
+local AutoBtn = Instance.new("TextButton")
+AutoBtn.Parent = MainFrame
+AutoBtn.BackgroundColor3 = Color3.fromRGB(80, 55, 25)
+AutoBtn.BorderSizePixel = 0
+AutoBtn.Position = UDim2.new(0.5, 5, 1, -122)
+AutoBtn.Size = UDim2.new(0.5, -20, 0, 43)
+AutoBtn.Font = Enum.Font.GothamBold
+AutoBtn.Text = "⚡ AUTO LOCK SPAWN"
+AutoBtn.TextColor3 = Color3.new(1, 1, 1)
+AutoBtn.TextSize = 11
+Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 8)
+
+local JoinBtn = Instance.new("TextButton")
+JoinBtn.Parent = MainFrame
+JoinBtn.BackgroundColor3 = Color3.fromRGB(225, 35, 85)
+JoinBtn.BorderSizePixel = 0
+JoinBtn.Position = UDim2.new(0, 15, 1, -72)
+JoinBtn.Size = UDim2.new(1, -30, 0, 40)
+JoinBtn.Font = Enum.Font.GothamBold
+JoinBtn.Text = "JOIN — LOCK SPAWN TERBESAR"
+JoinBtn.TextColor3 = Color3.new(1, 1, 1)
+JoinBtn.TextSize = 11
+Instance.new("UICorner", JoinBtn).CornerRadius = UDim.new(0, 8)
+
+local SelectedLabel = Instance.new("TextLabel")
+SelectedLabel.Parent = MainFrame
+SelectedLabel.BackgroundTransparency = 1
+SelectedLabel.Position = UDim2.new(0, 18, 1, -48)
+SelectedLabel.Size = UDim2.new(1, -36, 0, 18)
+SelectedLabel.Font = Enum.Font.Gotham
+SelectedLabel.Text = "Belum memilih server"
+SelectedLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+SelectedLabel.TextSize = 9
+SelectedLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- =========================================================
+-- UTILITY
+-- =========================================================
+
+local function SetStatus(text) Status.Text = text end
+
+local function UpdateInfo()
+    local count = 0
+    for _ in pairs(Candidates) do count += 1 end
+    Info.Text = "Dicoba: " .. totalTry ..
+        "  •  OK: " .. totalOK ..
+        "  •  Skip: " .. totalSkipped ..
+        "  •  Server: " .. count ..
+        "  •  Target: " .. math.floor(CURRENT_TARGET_SIZE)
+end
+
+local function CleanBlacklist()
+    local now = os.clock()
+    for jid, expire in pairs(Blacklist) do
+        if now >= expire then Blacklist[jid] = nil end
+    end
+    for jid, t in pairs(recentFailedServers) do
+        if now - t > RETRY_SAME_SERVER_COOLDOWN then
+            recentFailedServers[jid] = nil
+        end
+    end
+end
+
+local function IsBlacklisted(jid) return Blacklist[jid] ~= nil end
+
+local function IsRecentlyFailed(jid)
+    local t = recentFailedServers[jid]
+    if not t then return false end
+    if (os.clock() - t) > RETRY_SAME_SERVER_COOLDOWN then
+        recentFailedServers[jid] = nil
+        return false
+    end
+    return true
+end
+
+local function ClearServerList()
+    for _, child in ipairs(ServerList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+end
+
+-- =========================================================
+-- 🛡️ ANTI-SPAM 769/722 — TIDAK DIUBAH
+-- =========================================================
+
+local function CleanTeleportHistory()
+    local now = os.clock()
+    local newHistory = {}
+    for _, t in ipairs(teleportHistory) do
+        if now - t < 300 then
+            table.insert(newHistory, t)
+        end
+    end
+    teleportHistory = newHistory
+end
+
+local function CanTeleportNow()
+    if TELEPORT_LOCK then return false, "Sedang proses" end
+    CleanTeleportHistory()
+    local now = os.clock()
+
+    local sinceLast = now - lastTeleportTime
+    if sinceLast < TELEPORT_COOLDOWN then
+        return false, "Tunggu " .. string.format("%.1f", TELEPORT_COOLDOWN - sinceLast) .. "s"
+    end
+
+    local count1min = 0
+    local oldestInWindow = nil
+    for _, t in ipairs(teleportHistory) do
+        if now - t < 60 then
+            count1min += 1
+            if not oldestInWindow or t < oldestInWindow then
+                oldestInWindow = t
+            end
+        end
+    end
+    if count1min >= MAX_TELEPORT_PER_MINUTE then
+        local waitTime = 60 - (now - (oldestInWindow or now))
+        return false, "Limit/menit — tunggu " .. string.format("%.0f", math.max(waitTime, 1)) .. "s"
+    end
+
+    if #teleportHistory >= MAX_TELEPORT_PER_5MIN then
+        local oldest = teleportHistory[1] or now
+        local waitTime = 300 - (now - oldest)
+        return false, "Limit/5menit — tunggu " .. string.format("%.0f", math.max(waitTime, 1)) .. "s"
+    end
+
+    return true, nil
+end
+
+local function WaitUntilTeleportAllowed()
+    while true do
+        if TELEPORT_LOCK then task.wait(0.3)
+        else
+            local ok, reason = CanTeleportNow()
+            if ok then return true end
+            SetStatus("🛡️ TUNGGU\n" .. reason)
+        end
+        if not running and not teleporting then return false end
+        task.wait(0.5)
+    end
+end
+
+local function RecordTeleportAttempt()
+    lastTeleportTime = os.clock()
+    table.insert(teleportHistory, os.clock())
+    CleanTeleportHistory()
+end
+
+local function ForceCooldown(seconds)
+    lastTeleportTime = os.clock() + seconds - TELEPORT_COOLDOWN
+end
+
+local function IsRateLimitError(errMsg)
+    if not errMsg then return false end
+    local s = string.lower(tostring(errMsg))
+    return string.find(s, "769") ~= nil
+        or string.find(s, "722") ~= nil
+        or string.find(s, "too many") ~= nil
+        or string.find(s, "rate limit") ~= nil
+end
+
+-- =========================================================
+-- ✅ AKURASI SIZE — FIX TOTAL
+-- =========================================================
+
+local function IsEggAvailable(obj)
+    local ok, transparency = pcall(function() return obj.Transparency end)
+    if ok and transparency and transparency >= 1 then return false end
+    if obj:IsDescendantOf(game.Players) then return false end
+
+    local takenAttr = obj:GetAttribute("Taken") or obj:GetAttribute("Claimed")
+        or obj:GetAttribute("TakenBy") or obj:GetAttribute("Owner")
+    if takenAttr ~= nil then
+        if typeof(takenAttr) == "boolean" and takenAttr then return false end
+        if typeof(takenAttr) == "string" and takenAttr ~= "" then return false end
+    end
+
+    local parent = obj.Parent
+    if parent and (parent:IsA("Tool") or parent:IsA("Accessory")) then return false end
+
+    if obj:IsA("BasePart") then
+        local ok2, vel = pcall(function() return obj.AssemblyLinearVelocity end)
+        if ok2 and vel and vel.Magnitude > 50 then return false end
+    end
+
+    return true
+end
+
+local UNIT_TO_KG = {
+    ["kg"] = 1, ["kilogram"] = 1, ["kilograms"] = 1,
+    ["g"] = 0.001, ["gram"] = 0.001, ["grams"] = 0.001,
+    ["t"] = 1000, ["ton"] = 1000, ["tons"] = 1000, ["tonne"] = 1000, ["tonnes"] = 1000,
+    ["lb"] = 0.453592, ["lbs"] = 0.453592, ["pound"] = 0.453592, ["pounds"] = 0.453592,
+    ["oz"] = 0.0283495, ["ounce"] = 0.0283495, ["ounces"] = 0.0283495,
+    ["st"] = 6.35029, ["stone"] = 6.35029,
+    ["kt"] = 1000000, ["megaton"] = 1000000, ["mt"] = 1000000,
+    ["kw"] = 100, ["kuintal"] = 100, ["quintal"] = 100, ["qt"] = 100,
+}
+
+local function ExtractWeightFromName(name)
+    if not name or name == "" then return 0 end
+    local n = string.lower(tostring(name))
+    local best = 0
+
+    for num, unit in string.gmatch(n, "(%d+%.?%d*)%s*([a-z]+)") do
+        local val = tonumber(num)
+        if val and UNIT_TO_KG[unit] then
+            local kg = val * UNIT_TO_KG[unit]
+            if kg > best then best = kg end
+        end
+    end
+
+    if best == 0 then
+        local num = tonumber(string.match(n, "(%d+%.?%d*)"))
+        if num and num > 0 then
+            best = num
+        end
+    end
+
+    return best
+end
+
+local function GetTrueSize(obj)
+    local sx, sy, sz = 1, 1, 1
+    local found = false
+
+    if obj:IsA("BasePart") then
+        sx = obj.Size.X
+        sy = obj.Size.Y
+        sz = obj.Size.Z
+        found = true
+    end
+
+    local mesh = obj:FindFirstChildOfClass("SpecialMesh")
+        or obj:FindFirstChildOfClass("Mesh")
+        or obj:FindFirstChildOfClass("CylinderMesh")
+        or obj:FindFirstChildOfClass("BlockMesh")
+        or obj:FindFirstChildOfClass("SphereMesh")
+        or obj:FindFirstChildOfClass("WedgeMesh")
+    if mesh then
+        sx *= mesh.Scale.X
+        sy *= mesh.Scale.Y
+        sz *= mesh.Scale.Z
+        found = true
+    end
+
+    if obj:IsA("Model") then
+        local ok, sc = pcall(function() return obj:GetScale() end)
+        if ok and sc then
+            sx *= sc.X
+            sy *= sc.Y
+            sz *= sc.Z
+            found = true
+        end
+        local ok2, ext = pcall(function() return obj:GetExtentsSize() end)
+        if ok2 and ext then
+            sx = math.max(sx, ext.X)
+            sy = math.max(sy, ext.Y)
+            sz = math.max(sz, ext.Z)
+            found = true
+        end
+    end
+
+    if not obj:IsA("BasePart") then
+        for _, d in ipairs(obj:GetDescendants()) do
+            if d:IsA("BasePart") then
+                local dsize = d.Size
+                local dm = d:FindFirstChildOfClass("SpecialMesh")
+                    or d:FindFirstChildOfClass("Mesh")
+                if dm then
+                    dsize = Vector3.new(
+                        dsize.X * dm.Scale.X,
+                        dsize.Y * dm.Scale.Y,
+                        dsize.Z * dm.Scale.Z
+                    )
+                end
+                sx = math.max(sx, dsize.X)
+                sy = math.max(sy, dsize.Y)
+                sz = math.max(sz, dsize.Z)
+                found = true
+            end
+        end
+    end
+
+    if not found then return 0, Vector3.new() end
+    return sx * sy * sz, Vector3.new(sx, sy, sz)
+end
+
+local EGG_WORDS = {
+    "egg", "pet", "huge", "big", "giant", "titan",
+    "divine", "secret", "eternal", "celestial", "godly",
+    "mythic", "abyssal", "void", "exotic", "rainbow",
+    "legendary", "rare", "epic",
+}
+
+-- =========================================================
+-- 🔒 SCORE EGG — DIVINE/SECRET/ETERNAL LOCK MUTLAK
+-- =========================================================
+
+local function ScoreEgg(obj)
+    if not IsEggAvailable(obj) then return nil end
+
+    local name = string.lower(obj.Name)
+    local isEggNamed = false
+    for _, w in ipairs(EGG_WORDS) do
+        if string.find(name, w, 1, true) then isEggNamed = true break end
+    end
+
+    local tier = "unknown"
+    local lockedRank = 0
+    local isLocked = false
+
+    for kw, rank in pairs(LOCKED_RARE) do
+        if string.find(name, kw, 1, true) then
+            tier = kw
+            lockedRank = rank
+            isLocked = true
+            break
+        end
+    end
+
+    if not isLocked then
+        for _, keyword in ipairs(EGG_PRIORITY) do
+            if string.find(name, keyword, 1, true) then
+                tier = keyword
+                break
+            end
+        end
+    end
+
+    local volume, vec = GetTrueSize(obj)
+
+    if not isEggNamed and volume < 5 then return nil end
+    if volume <= 0 then return nil end
+
+    local weightKG = ExtractWeightFromName(obj.Name)
+    if weightKG <= 0 then
+        weightKG = volume
+    end
+
+    local mainScore
+    if isLocked then
+        mainScore = lockedRank * 1e15 + volume * 1000 + weightKG
+    else
+        mainScore = volume * 1000 + weightKG
+    end
+
+    return {
+        name = obj.Name,
+        tier = tier,
+        weightKG = weightKG,
+        volume = volume,
+        sizeVec = vec,
+        object = obj,
+        isRare = isLocked,
+        lockedRank = lockedRank,
+        mainScore = mainScore,
+    }
+end
+
+-- =========================================================
+-- 🔒 SCAN SAAT SPAWN — DIVINE/SECRET/ETERNAL PALING GEDE
+-- =========================================================
+
+local function ScanBiggestEggInWorkspace()
+    local lockedEggs = {}
+    local normalEggs = {}
+
+    local seen = {}
+
+    local function checkChildren(parent, depth)
+        if depth > 6 then return end
+        for _, child in ipairs(parent:GetChildren()) do
+            if seen[child] then continue end
+            seen[child] = true
+
+            local egg = ScoreEgg(child)
+            if egg then
+                if egg.isRare then
+                    table.insert(lockedEggs, egg)
+                else
+                    table.insert(normalEggs, egg)
+                end
+            end
+
+            if child:IsA("Model") or child:IsA("Folder")
+                or child:IsA("Tool") or child:IsA("Accessory") then
+                checkChildren(child, depth + 1)
+            end
+        end
+    end
+
+    local found = false
+    for _, obj in ipairs(game.Workspace:GetChildren()) do
+        local lname = string.lower(obj.Name)
+        for _, key in ipairs(EGG_FOLDER_NAMES) do
+            if string.find(lname, key, 1, true) then
+                checkChildren(obj, 1)
+                found = true
+                break
+            end
+        end
+    end
+    if not found then checkChildren(game.Workspace, 0) end
+
+    local bestLocked = nil
+    local bestNormal = nil
+
+    if #lockedEggs > 0 then
+        table.sort(lockedEggs, function(a, b)
+            if a.lockedRank ~= b.lockedRank then
+                return a.lockedRank > b.lockedRank
+            end
+            return a.mainScore > b.mainScore
+        end)
+        bestLocked = lockedEggs[1]
+    end
+
+    if #normalEggs > 0 then
+        table.sort(normalEggs, function(a, b)
+            return a.mainScore > b.mainScore
+        end)
+        bestNormal = normalEggs[1]
+    end
+
+    local result = bestLocked or bestNormal
+    local hasLocked = (bestLocked ~= nil)
+    BestEgg = result
+    return result, hasLocked, bestNormal
+end
+
+-- =========================================================
+-- ✅ SERVER RNG WANGI
+-- =========================================================
+
+local function HashJID(jid)
+    local hash = 0
+    for i = 1, #jid do
+        hash = (hash * 31 + string.byte(jid, i)) % 1000000
+    end
+    return hash
+end
+
+local function PredictEggScore(jid, serverData)
+    local hash = HashJID(jid)
+    local rngBase = 50 + (hash % 50)
+
+    local region = string.lower(tostring(serverData.region or ""))
+    local regionBonus = 0
+    for r, val in pairs(PREFERRED_REGIONS) do
+        if string.find(region, r) then regionBonus = val break end
+    end
+
+    local uptime = serverData.uptime or 0
+    local uptimeBonus = uptime < 200 and 20 or uptime < 900 and 12 or uptime < 2000 and 5 or 0
+
+    local ping = serverData.ping or 999
+    local pingBonus = ping < 50 and 12 or ping < 90 and 8 or ping < 140 and 4 or 0
+
+    return math.min(rngBase + regionBonus + uptimeBonus + pingBonus, 250)
+end
+
+-- =========================================================
+-- FETCH
+-- =========================================================
+
+local function BuildURL(cursor)
+    local url = "https://games.roblox.com/v1/games/" .. PlaceId ..
+        "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor then url ..= "&cursor=" .. HttpService:UrlEncode(cursor) end
+    return url
+end
+
+local function FetchFast(url)
+    local ok, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+    if ok and res then return res end
+    return nil
+end
+
+local function processList(list)
+    for _, server in ipairs(list) do
+        local jid = server.id
+        local players = server.playing
+        if jid and jid ~= game.JobId
+            and players == TARGET_EXACT
+            and not IsBlacklisted(jid)
+        then
+            local eggScore = PredictEggScore(jid, server)
+            ServerEggScores[jid] = eggScore
+            Candidates[jid] = {
+                firstSeen = os.clock(),
+                lastCheck = os.clock(),
+                score = eggScore,
+                region = server.region,
+                ping = server.ping,
+                uptime = server.uptime,
+                eggScore = eggScore,
+            }
+        end
+    end
+end
+
+-- =========================================================
+-- LIST UI
+-- =========================================================
+
+local function SelectServer(jid, row)
+    selectedServer = jid
+    for _, child in ipairs(ServerList:GetChildren()) do
+        if child:IsA("Frame") then
+            local s = child:FindFirstChild("SelectStroke")
+            if s then s.Transparency = 1 end
+        end
+    end
+    local stroke = row:FindFirstChild("SelectStroke")
+    if stroke then stroke.Transparency = 0 end
+
+    local data = Candidates[jid]
+    local eggScore = data and data.eggScore or 0
+    local scanData = ServerScanResults[jid]
+    if scanData then
+        local v = scanData.sizeVec or Vector3.new()
+        SelectedLabel.Text = "PILIH: " .. string.sub(tostring(jid), 1, 10) ..
+            " • " .. string.upper(scanData.tier) ..
+            " • 📏 " .. string.format("%.0f × %.0f × %.0f", v.X, v.Y, v.Z)
+    else
+        SelectedLabel.Text = "PILIH: " .. string.sub(tostring(jid), 1, 12) ..
+            "  • RNG WANGI: " .. math.floor(eggScore)
+    end
+    SelectedLabel.TextColor3 = Color3.fromRGB(255, 90, 125)
+    JoinBtn.BackgroundColor3 = Color3.fromRGB(225, 35, 85)
+end
+
+local function AddServer(jid, data, isBest, scanData)
+    local Row = Instance.new("Frame")
+    Row.Parent = ServerList
+    Row.BackgroundColor3 = Color3.fromRGB(23, 23, 29)
+    Row.BorderSizePixel = 0
+    Row.Size = UDim2.new(1, -2, 0, scanData and 80 or 65)
+    Row.LayoutOrder = isBest and 0 or 1
+    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 7)
+
+    if isBest then
+        Row.BackgroundColor3 = Color3.fromRGB(45, 38, 15)
+        local bestStroke = Instance.new("UIStroke")
+        bestStroke.Parent = Row
+        bestStroke.Color = Color3.fromRGB(255, 210, 60)
+        bestStroke.Thickness = 2
+        bestStroke.Transparency = 0
+    end
+
+    local SelectStroke = Instance.new("UIStroke")
+    SelectStroke.Name = "SelectStroke"
+    SelectStroke.Parent = Row
+    SelectStroke.Color = Color3.fromRGB(255, 45, 90)
+    SelectStroke.Thickness = 1
+    SelectStroke.Transparency = 1
+
+    local Indicator = Instance.new("Frame")
+    Indicator.Parent = Row
+    Indicator.BackgroundColor3 = isBest and Color3.fromRGB(255, 210, 60) or Color3.fromRGB(45, 220, 120)
+    Indicator.BorderSizePixel = 0
+    Indicator.Position = UDim2.new(0, 9, 0.5, -8)
+    Indicator.Size = UDim2.new(0, 4, 0, 22)
+    Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
+
+    local ServerText = Instance.new("TextLabel")
+    ServerText.Parent = Row
+    ServerText.BackgroundTransparency = 1
+    ServerText.Position = UDim2.new(0, 23, 0, 5)
+    ServerText.Size = UDim2.new(1, -35, 0, 18)
+    ServerText.Font = Enum.Font.GothamBold
+    ServerText.Text = (isBest and "⭐ TERBAIK • 1P" or "SERVER • 1P")
+    ServerText.TextColor3 = isBest and Color3.fromRGB(255, 220, 80) or Color3.fromRGB(235, 235, 240)
+    ServerText.TextSize = 10
+    ServerText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local JobText = Instance.new("TextLabel")
+    JobText.Parent = Row
+    JobText.BackgroundTransparency = 1
+    JobText.Position = UDim2.new(0, 23, 0, 24)
+    JobText.Size = UDim2.new(1, -35, 0, 14)
+    JobText.Font = Enum.Font.Gotham
+    JobText.Text = "ID: " .. string.sub(tostring(jid), 1, 18)
+    JobText.TextColor3 = Color3.fromRGB(125, 125, 135)
+    JobText.TextSize = 8
+    JobText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local uptimeMin = math.floor((data.uptime or 0) / 60)
+    local uptimeStr = uptimeMin < 1 and "<1m" or (uptimeMin .. "m")
+
+    local ScoreText = Instance.new("TextLabel")
+    ScoreText.Parent = Row
+    ScoreText.BackgroundTransparency = 1
+    ScoreText.Position = UDim2.new(0, 23, 0, 40)
+    ScoreText.Size = UDim2.new(1, -35, 0, 20)
+    ScoreText.Font = Enum.Font.GothamMedium
+    ScoreText.Text = "🎲 RNG: " .. math.floor(data.eggScore or 0) ..
+        " • " .. uptimeStr ..
+        " • " .. math.floor(data.ping or 0) .. "ms"
+    ScoreText.TextColor3 = isBest and Color3.fromRGB(255, 230, 130) or Color3.fromRGB(150, 220, 150)
+    ScoreText.TextSize = 8
+    ScoreText.TextXAlignment = Enum.TextXAlignment.Left
+
+    if scanData then
+        local sizeText = Instance.new("TextLabel")
+        sizeText.Parent = Row
+        sizeText.BackgroundTransparency = 1
+        sizeText.Position = UDim2.new(0, 23, 0, 58)
+        sizeText.Size = UDim2.new(1, -35, 0, 18)
+        sizeText.Font = Enum.Font.GothamBold
+        local v = scanData.sizeVec or Vector3.new()
+        local tonStr = string.format("%.2f", (scanData.weightKG or 0) / 1000)
+        local tierIcon = scanData.isLocked and "🔒 " or "📏 "
+        sizeText.Text = tierIcon .. string.upper(scanData.tier) ..
+            "  •  " .. string.format("%.0f×%.0f×%.0f", v.X, v.Y, v.Z) ..
+            "  •  ⚖️ " .. tonStr .. " TON"
+        sizeText.TextColor3 = scanData.isLocked
+            and Color3.fromRGB(255, 100, 200)
+            or Color3.fromRGB(100, 255, 180)
+        sizeText.TextSize = 8
+        sizeText.TextXAlignment = Enum.TextXAlignment.Left
+    end
+
+    local SelectButton = Instance.new("TextButton")
+    SelectButton.Parent = Row
+    SelectButton.BackgroundTransparency = 1
+    SelectButton.Size = UDim2.new(1, 0, 1, 0)
+    SelectButton.Text = ""
+    SelectButton.MouseButton1Click:Connect(function()
+        if not teleporting then SelectServer(jid, Row) end
+    end)
+end
+
+local function UpdateServerList()
+    ClearServerList()
+    local sorted = {}
+    for jid, data in pairs(Candidates) do
+        if not IsBlacklisted(jid) and not IsRecentlyFailed(jid) then
+            local scanData = ServerScanResults[jid]
+            table.insert(sorted, {
+                jid = jid,
+                data = data,
+                scanData = scanData,
+            })
+        end
+    end
+
+    table.sort(sorted, function(a, b)
+        local aSize = a.scanData and a.scanData.size or 0
+        local bSize = b.scanData and b.scanData.size or 0
+        if aSize ~= bSize then return aSize > bSize end
+        return (a.data.eggScore or 0) > (b.data.eggScore or 0)
+    end)
+
+    BestServer = sorted[1] and sorted[1].jid or nil
+
+    local count = 0
+    for _, entry in ipairs(sorted) do
+        if count >= MAX_DISPLAY_SERVERS then break end
+        local isBest = (entry.jid == BestServer)
+        AddServer(entry.jid, entry.data, isBest, entry.scanData)
+        count += 1
+    end
+    UpdateInfo()
+end
+
+-- =========================================================
+-- SCAN SERVER
+-- =========================================================
+
+local function Scan()
+    local scanStart = os.clock()
+    Candidates = {}
+    selectedServer = nil
+    BestServer = nil
+    ServerEggScores = {}
+
+    SelectedLabel.Text = "Belum memilih server"
+    SelectedLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+    JoinBtn.Text = "JOIN — LOCK SPAWN TERBESAR"
+    JoinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+
+    ClearServerList()
+
+    local first = FetchFast(BuildURL(nil))
+    if not first or not first.data then
+        SetStatus("❌ GAGAL AMBIL DATA")
+        return false
+    end
+
+    processList(first.data)
+    UpdateServerList()
+
+    if first.nextPageCursor then
+        task.spawn(function()
+            local cursor = first.nextPageCursor
+            local page = 1
+            while cursor and page < MAX_PAGES do
+                page += 1
+                local data = FetchFast(BuildURL(cursor))
+                if not data or not data.data then break end
+                processList(data.data)
+                UpdateServerList()
+                cursor = data.nextPageCursor
+                if not cursor then break end
+            end
+        end)
+    end
+
+    local count = 0
+    for _ in pairs(Candidates) do count += 1 end
+
+    if count > 0 then
+        SetStatus("✅ " .. count .. " SERVER — SIAP LOCK SPAWN")
+    else
+        SetStatus("⏳ TIDAK ADA SERVER 1 PLAYER")
+    end
+    return count > 0
+end
+
+-- =========================================================
+-- TELEPORT — ANTI 769 TIDAK DIUBAH
+-- =========================================================
+
+local function TeleportToServer(jid)
+    if not jid or IsBlacklisted(jid) or IsRecentlyFailed(jid) then return false end
+
+    local allowed = WaitUntilTeleportAllowed()
+    if not allowed then return false end
+
+    TELEPORT_LOCK = true
+    teleporting = true
+    totalTry += 1
+    UpdateInfo()
+
+    local eggScore = ServerEggScores[jid] or 0
+    SetStatus("🚀 MASUK SERVER...\nRNG WANGI: " .. math.floor(eggScore))
+
+    RecordTeleportAttempt()
+
+    local failed = false
+    local errorMessage
+    local rateLimited = false
+
+    local connection
+    connection = TeleportService.TeleportInitFailed:Connect(function(player, _, err)
+        if player == LocalPlayer then
+            failed = true
+            errorMessage = tostring(err)
+            rateLimited = IsRateLimitError(errorMessage)
+            if connection then connection:Disconnect() connection = nil end
+        end
+    end)
+
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(PlaceId, jid, LocalPlayer)
+    end)
+
+    if not ok then
+        if connection then connection:Disconnect() end
+        teleporting = false
+        TELEPORT_LOCK = false
+        recentFailedServers[jid] = os.clock()
+
+        if IsRateLimitError(err) then
+            ForceCooldown(TELEPORT_COOLDOWN_AFTER_769)
+            SetStatus("🛡️ 769/722 — TUNGGU " .. TELEPORT_COOLDOWN_AFTER_769 .. "s")
+            Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+        else
+            ForceCooldown(TELEPORT_COOLDOWN_AFTER_FAIL)
+            SetStatus("❌ GAGAL — " .. tostring(err))
+            Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+        end
+        return false
+    end
+
+    for _ = 1, TELEPORT_WAIT do
+        task.wait(0.05)
+        if failed then
+            if connection then connection:Disconnect() end
+            teleporting = false
+            TELEPORT_LOCK = false
+            recentFailedServers[jid] = os.clock()
+            if rateLimited then
+                ForceCooldown(TELEPORT_COOLDOWN_AFTER_769)
+                SetStatus("🛡️ LIMIT — TUNGGU " .. TELEPORT_COOLDOWN_AFTER_769 .. "s")
+            else
+                ForceCooldown(TELEPORT_COOLDOWN_AFTER_FAIL)
+                SetStatus("❌ PENUH — PINDAH OTOMATIS")
+            end
+            Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+            return false
+        end
+        if game.JobId == jid then
+            if connection then connection:Disconnect() end
+            totalOK += 1
+            UpdateInfo()
+            SetStatus("✅ MASUK!\nTunggu spawn telur...")
+            TELEPORT_LOCK = false
+            return true
+        end
+    end
+
+    if connection then connection:Disconnect() end
+    teleporting = false
+    TELEPORT_LOCK = false
+    recentFailedServers[jid] = os.clock()
+    ForceCooldown(TELEPORT_COOLDOWN_AFTER_FAIL)
+    Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+    SetStatus("❌ TIMEOUT")
+    return false
+end
+
+-- =========================================================
+-- 🔒 WAIT FOR BEST EGG — SAAT SPAWN
+-- =========================================================
+
+local function WaitForBestEgg()
+    local startWait = os.clock()
+    local bestLockedFound = nil
+    local bestNormalFound = nil
+
+    while (os.clock() - startWait) < EGG_CHECK_WAIT do
+        local best, hasLocked, normal = ScanBiggestEggInWorkspace()
+
+        if best then
+            local v = best.sizeVec or Vector3.new()
+            local sizeStr = string.format("%.1f × %.1f × %.1f", v.X, v.Y, v.Z)
+            local tonStr = string.format("%.2f", best.weightKG / 1000)
+
+            if hasLocked then
+                bestLockedFound = best
+                SetStatus("🔒 " .. string.upper(best.tier) .. " SPAWN!\n" ..
+                    best.name ..
+                    "\n📏 " .. sizeStr ..
+                    "\n⚖️ " .. tonStr .. " TON")
+            else
+                bestNormalFound = best
+                SetStatus("🥚 PALING BESAR: " .. best.name ..
+                    "\n📏 " .. sizeStr ..
+                    "\n⚖️ " .. tonStr .. " TON" ..
+                    "\n⏳ Tunggu divine/secret/eternal...")
+            end
+        end
+        task.wait(EGG_CHECK_INTERVAL)
+    end
+
+    if bestLockedFound then return true, bestLockedFound, true end
+    if bestNormalFound then return true, bestNormalFound, false end
+    return false, nil, false
+end
+
+local function FindNextTarget(excludeJid)
+    local bestJid = nil
+    local bestScore = -1
+    for jid, data in pairs(Candidates) do
+        if jid ~= excludeJid
+            and not IsBlacklisted(jid)
+            and not IsRecentlyFailed(jid)
+            and (data.eggScore or 0) > bestScore
+        then
+            bestScore = data.eggScore
+            bestJid = jid
+        end
+    end
+    return bestJid
+end
+
+-- =========================================================
+-- 🔒 JOIN & VERIFY — LOCK SPAWN DIVINE/SECRET/ETERNAL TERBESAR
+-- =========================================================
+
+local function JoinAndVerify(jid)
+    local success = TeleportToServer(jid)
+    if not success then
+        Blacklist[jid] = os.clock() + FAILED_SERVER_DURATION
+        recentFailedServers[jid] = os.clock()
+        return false
+    end
+
+    task.wait(1.5)
+    SetStatus("🔍 TUNGGU SPAWN TELUR...")
+
+    local found, bestEgg, isLocked = WaitForBestEgg()
+
+    -- ❌ GA ADA SPAWN SAMA SEKALI → SKIP
+    if not found then
+        Blacklist[jid] = os.clock() + 30
+        totalSkipped += 1
+        UpdateInfo()
+        SetStatus("❌ GA ADA SPAWN\nPindah server RNG berikutnya...")
+        return false
+    end
+
+    local v = bestEgg.sizeVec or Vector3.new()
+    local sizeStr = string.format("%.1f × %.1f × %.1f", v.X, v.Y, v.Z)
+    local volume = bestEgg.volume or 0
+    local weightTon = bestEgg.weightKG / 1000
+
+    ServerScanResults[jid] = {
+        size = volume,
+        sizeVec = v,
+        tier = bestEgg.tier,
+        weightKG = bestEgg.weightKG,
+        name = bestEgg.name,
+        isLocked = isLocked,
+        timestamp = os.clock(),
+    }
+
+    local shouldLock = false
+    local reason = ""
+
+    if isLocked then
+        -- 🔒 DIVINE/SECRET/ETERNAL SPAWN → WAJIB TETAP
+        shouldLock = true
+        reason = "🔒 " .. string.upper(bestEgg.tier) .. " SPAWN!"
+
+        if volume > BestEverSize then
+            BestEverSize = volume
+            BestEverServer = jid
+            CURRENT_TARGET_SIZE = volume
+        end
+    elseif volume > CURRENT_TARGET_SIZE and volume >= MIN_SIZE_TO_KEEP then
+        shouldLock = true
+        reason = "📏 SIZE TERBESAR BARU!"
+        CURRENT_TARGET_SIZE = volume
+        BestEverSize = volume
+        BestEverServer = jid
+    else
+        shouldLock = false
+        reason = "⏭️ SIZE " .. math.floor(volume) ..
+            " < TARGET " .. math.floor(CURRENT_TARGET_SIZE)
+    end
+
+    if shouldLock then
+        local tonStr = string.format("%.2f", weightTon)
+        if isLocked then
+            SetStatus("🎉 LOCK!\n🔒 " .. string.upper(bestEgg.tier) .. " SPAWN!\n" ..
+                bestEgg.name ..
+                "\n📏 " .. sizeStr ..
+                "\n⚖️ " .. tonStr .. " TON\n✅ TETAP DI SINI")
+        else
+            SetStatus("✅ SIZE TERBESAR!\n" .. bestEgg.name ..
+                "\n📏 " .. sizeStr ..
+                "\n⚖️ " .. tonStr .. " TON\n✅ TETAP DI SINI")
+        end
+
+        UpdateServerList()
+        return true
+    else
+        SetStatus("⏭️ SKIP SERVER INI\n" .. reason ..
+            "\n📏 " .. sizeStr ..
+            "\n⚖️ " .. string.format("%.2f", weightTon) .. " TON\nCari yang lebih gede...")
+        Blacklist[jid] = os.clock() + 30
+        totalSkipped += 1
+        UpdateInfo()
+        UpdateServerList()
+        return false
+    end
+end
+
+-- =========================================================
+-- TOMBOL JOIN
+-- =========================================================
+
+JoinBtn.MouseButton1Click:Connect(function()
+    if running or teleporting then return end
+    if not selectedServer then
+        SetStatus("⚠️ PILIH SERVER DULU")
+        return
+    end
+    if not Candidates[selectedServer] then
+        SetStatus("❌ Sudah tidak tersedia")
+        return
+    end
+
+    JoinBtn.Active = false
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+
+    local jid = selectedServer
+    local ok = JoinAndVerify(jid)
+    if not ok then
+        local nextJid = FindNextTarget(jid)
+        if nextJid then
+            SetStatus("⏭️ PINDAH OTOMATIS KE SERVER BERIKUTNYA")
+            task.wait(0.8)
+            TeleportToServer(nextJid)
+        end
+    end
+
+    JoinBtn.Active = true
+    ScanBtn.Active = true
+    AutoBtn.Active = true
+end)
+
+-- =========================================================
+-- TOMBOL SCAN
+-- =========================================================
+
+ScanBtn.MouseButton1Click:Connect(function()
+    if running or teleporting then return end
+    running = true
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+    JoinBtn.Active = false
+    ScanBtn.Text = "🔎 SCANNING..."
+    SetStatus("🔎 CARI SERVER 1 PLAYER...")
+
+    task.spawn(function()
+        Scan()
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        ScanBtn.Text = "🔄 SCAN ULANG"
+    end)
+end)
+
+-- =========================================================
+-- ⚡ AUTO LOCK SPAWN — LOOP SAMPAI DAPET
+-- =========================================================
+
+local function AutoJoin()
+    if running or teleporting then return end
+    running = true
+    selectedServer = nil
+
+    ScanBtn.Active = false
+    AutoBtn.Active = false
+    JoinBtn.Active = false
+    AutoBtn.Text = "⛔ STOP AUTO"
+
+    SetStatus("⚡ AUTO LOCK SPAWN AKTIF\nCari divine/secret/eternal terbesar")
+
+    task.spawn(function()
+        while running do
+            CleanBlacklist()
+
+            SetStatus("🔎 SCAN SERVER 1 PLAYER...")
+            local found = Scan()
+
+            if not found then
+                SetStatus("⏳ TIDAK ADA SERVER\nTunggu " .. AUTO_SCAN_DELAY .. "s...")
+                task.wait(AUTO_SCAN_DELAY)
+                continue
+            end
+
+            local targets = {}
+            for jid, data in pairs(Candidates) do
+                if not IsBlacklisted(jid) and not IsRecentlyFailed(jid) then
+                    local scanData = ServerScanResults[jid]
+                    if not scanData or scanData.size > CURRENT_TARGET_SIZE then
+                        table.insert(targets, { jid = jid, score = data.eggScore or 0 })
+                    end
+                end
+            end
+            table.sort(targets, function(a, b) return a.score > b.score end)
+
+            local gotIt = false
+            for _, entry in ipairs(targets) do
+                if not running then break end
+
+                local canGo, reason = CanTeleportNow()
+                if not canGo then
+                    SetStatus("🛡️ TUNGGU COOLDOWN\n" .. (reason or ""))
+                    local waited = 0
+                    while running and waited < 90 do
+                        if CanTeleportNow() then break end
+                        task.wait(0.5)
+                        waited += 0.5
+                    end
+                    if not running then break end
+                end
+
+                SetStatus("⚡ COBA SERVER: " .. math.floor(entry.score) ..
+                    "\n🎯 TARGET SIZE: " .. math.floor(CURRENT_TARGET_SIZE))
+
+                local ok = JoinAndVerify(entry.jid)
+                if ok then
+                    gotIt = true
+                    break
+                end
+
+                if not running then break end
+                task.wait(TELEPORT_QUEUE_DELAY)
+            end
+
+            if gotIt then
+                SetStatus("🎉 DAPAT!\n🔒 TETAP DI SERVER INI")
+                running = false
+                break
+            end
+
+            if running then
+                SetStatus("🔎 SEMUA SUDAH DICOBA\nScan ulang cari yang lebih gede...")
+                task.wait(AUTO_SCAN_DELAY)
+            end
+        end
+
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        AutoBtn.Text = "⚡ AUTO LOCK SPAWN"
+    end)
+end
+
+AutoBtn.MouseButton1Click:Connect(function()
+    if teleporting then return end
+    if running then
+        running = false
+        ScanBtn.Active = true
+        AutoBtn.Active = true
+        JoinBtn.Active = true
+        AutoBtn.Text = "⚡ AUTO LOCK SPAWN"
+        SetStatus("⏹ DIHENTIKAN")
+        return
+    end
+    AutoJoin()
+end)
+
+-- =========================================================
+-- INIT
+-- =========================================================
+
+UpdateInfo()
+SetStatus("✅ SIAP!\nLock spawn divine/secret/eternal terbesar")
