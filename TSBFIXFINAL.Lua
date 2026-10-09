@@ -29,10 +29,8 @@ local State = {
 	TeleportPlayer = false,
 	TeleportRandom = false,
 	SelectedTarget = nil,
-	AutoFarm = false,
 	AimLock = false,
 	AntiDeathPunch = false,
-	AutoBlock = false,
 	FixLag = false,
 	PsikirLiar = false,
 }
@@ -1445,16 +1443,139 @@ local function createDropdown(titleText, descText, order, callback, initialState
 	dbCorner.CornerRadius = UDim.new(0, 5)
 	dbCorner.Parent = dropBox
 
-	dropBox.MouseButton1Click:Connect(function()
-		local list = {}
+	local popup = Instance.new("Frame")
+	popup.Name = "Popup_" .. titleText
+	popup.Size = UDim2.new(0, 110, 0, 0)
+	popup.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+	popup.BorderSizePixel = 0
+	popup.Visible = false
+	popup.ZIndex = 100
+	popup.ClipsDescendants = true
+	popup.Parent = PopupLayer
+
+	local popupCorner = Instance.new("UICorner")
+	popupCorner.CornerRadius = UDim.new(0, 5)
+	popupCorner.Parent = popup
+
+	local popupStroke = Instance.new("UIStroke")
+	popupStroke.Color = Colors.Stroke
+	popupStroke.Thickness = 1
+	popupStroke.Parent = popup
+
+	local popupScroll = Instance.new("ScrollingFrame")
+	popupScroll.Size = UDim2.new(1, 0, 1, 0)
+	popupScroll.BackgroundTransparency = 1
+	popupScroll.BorderSizePixel = 0
+	popupScroll.ScrollBarThickness = 3
+	popupScroll.ScrollBarImageColor3 = Colors.Stroke
+	popupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	popupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	popupScroll.Parent = popup
+
+	local popupList = Instance.new("UIListLayout")
+	popupList.SortOrder = Enum.SortOrder.LayoutOrder
+	popupList.Padding = UDim.new(0, 2)
+	popupList.Parent = popupScroll
+
+	local popupPad = Instance.new("UIPadding")
+	popupPad.PaddingTop = UDim.new(0, 4)
+	popupPad.PaddingBottom = UDim.new(0, 4)
+	popupPad.PaddingLeft = UDim.new(0, 4)
+	popupPad.PaddingRight = UDim.new(0, 4)
+	popupPad.Parent = popupScroll
+
+	local isOpen = false
+
+	local function refreshPopup()
+		for _, child in pairs(popupScroll:GetChildren()) do
+			if child:IsA("TextButton") or child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+
+		local count = 0
 		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= player then table.insert(list, p.Name) end
+			if p ~= player then
+				count += 1
+				local item = Instance.new("TextButton")
+				item.Name = "Player_" .. p.Name
+				item.Size = UDim2.new(1, -6, 0, 22)
+				item.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+				item.BackgroundTransparency = 1
+				item.BorderSizePixel = 0
+				item.Text = p.Name
+				item.TextColor3 = Colors.Text
+				item.Font = Enum.Font.Gotham
+				item.TextSize = 10
+				item.TextXAlignment = Enum.TextXAlignment.Left
+				item.AutoButtonColor = false
+				item.LayoutOrder = count
+				item.Parent = popupScroll
+
+				local itemCorner = Instance.new("UICorner")
+				itemCorner.CornerRadius = UDim.new(0, 4)
+				itemCorner.Parent = item
+
+				local itemPad = Instance.new("UIPadding")
+				itemPad.PaddingLeft = UDim.new(0, 6)
+				itemPad.Parent = item
+
+				item.MouseEnter:Connect(function()
+					item.BackgroundTransparency = 0.5
+					item.BackgroundColor3 = Colors.SlotHover
+				end)
+
+				item.MouseLeave:Connect(function()
+					item.BackgroundTransparency = 1
+				end)
+
+				item.MouseButton1Click:Connect(function()
+					dropBox.Text = p.Name
+					State.SelectedTarget = p.Name
+					isOpen = false
+					popup.Visible = false
+					popup.Size = UDim2.new(0, 110, 0, 0)
+					if callback then callback(p.Name) end
+					notif("Target: " .. p.Name)
+				end)
+			end
 		end
-		if #list > 0 then
-			dropBox.Text = list[math.random(1, #list)]
-			State.SelectedTarget = dropBox.Text
-			if callback then callback(dropBox.Text) end
+
+		if count == 0 then
+			local empty = Instance.new("TextLabel")
+			empty.Size = UDim2.new(1, -6, 0, 22)
+			empty.BackgroundTransparency = 1
+			empty.Text = "Tidak ada player"
+			empty.TextColor3 = Colors.SubText
+			empty.Font = Enum.Font.Gotham
+			empty.TextSize = 10
+			empty.Parent = popupScroll
 		end
+
+		return count
+	end
+
+	dropBox.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		if isOpen then
+			local count = refreshPopup()
+			local absPos = dropBox.AbsolutePosition
+			local absSize = dropBox.AbsoluteSize
+			popup.Position = UDim2.new(0, absPos.X - 3, 0, absPos.Y + absSize.Y + 2)
+			popup.Visible = true
+			local h = math.max(math.min(count, 5) * 24 + 8, 30)
+			popup.Size = UDim2.new(0, 110, 0, h)
+		else
+			popup.Visible = false
+			popup.Size = UDim2.new(0, 110, 0, 0)
+		end
+	end)
+
+	Players.PlayerAdded:Connect(function()
+		if isOpen then refreshPopup() end
+	end)
+	Players.PlayerRemoving:Connect(function()
+		if isOpen then refreshPopup() end
 	end)
 
 	return row, dropBox
@@ -1554,18 +1675,160 @@ local function clearContent()
 	end
 end
 
+
+-- ===== TELEPORT PLAYER FUNCTION (PINDAH KE SINI) =====
+local teleportConnection = nil
+local teleportActive = false
+
+local VIM = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
+
+local ATTACK_BUTTON_NAME = nil
+local ATTACK_KEYWORDS = {"attack", "atk", "serang", "basic", "m1", "punch"}
+
+local function findAttackButton()
+	for _, o in ipairs(playerGui:GetDescendants()) do
+		if (o:IsA("TextButton") or o:IsA("ImageButton")) and o.Visible then
+			local n = o.Name:lower()
+			if ATTACK_BUTTON_NAME and o.Name == ATTACK_BUTTON_NAME then return o end
+			if not ATTACK_BUTTON_NAME then
+				for _, k in ipairs(ATTACK_KEYWORDS) do
+					if n:find(k) then return o end
+				end
+			end
+		end
+	end
+end
+
+local function attack()
+	local char = player.Character
+	local btn = findAttackButton()
+
+	if btn then
+		if getconnections then
+			local ok = false
+			for _, ev in ipairs({btn.MouseButton1Click, btn.Activated, btn.MouseButton1Down}) do
+				pcall(function()
+					for _, c in ipairs(getconnections(ev)) do
+						c:Fire()
+						ok = true
+					end
+				end)
+			end
+			if ok then return end
+		end
+		local pos = btn.AbsolutePosition + btn.AbsoluteSize / 2
+		local inset = GuiService:GetGuiInset()
+		pcall(function()
+			VIM:SendTouchEvent(1, 0, pos.X, pos.Y + inset.Y, game)
+			task.wait(0.03)
+			VIM:SendTouchEvent(1, 2, pos.X, pos.Y + inset.Y, game)
+		end)
+		return
+	end
+
+	local tool = char and char:FindFirstChildOfClass("Tool")
+	if tool then tool:Activate() end
+end
+
+local function startTeleportPlayer()
+	if teleportActive then return end
+	teleportActive = true
+	teleportConnection = RunService.RenderStepped:Connect(function()
+		if not teleportActive then return end
+		if not State.TeleportPlayer then return end
+		if not State.SelectedTarget then return end
+
+		local myChar = player.Character
+		if not myChar then return end
+		local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+		local myHum = myChar:FindFirstChildOfClass("Humanoid")
+		if not myRoot or not myHum then return end
+
+		local target = Players:FindFirstChild(State.SelectedTarget)
+		if not target or not target.Character then return end
+		local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+		local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
+		if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
+
+		-- Prediksi posisi target
+		local targetPos = targetRoot.Position
+		local targetVel = targetRoot.AssemblyLinearVelocity
+		local predictedPos = targetPos + (targetVel * 0.1)
+
+		-- Posisi rebahan di bawah target
+		local belowPos = Vector3.new(predictedPos.X, predictedPos.Y - 4, predictedPos.Z)
+		local lookCF = CFrame.lookAt(belowPos, predictedPos)
+		local sleepCF = lookCF * CFrame.Angles(math.rad(-75), 0, 0)
+
+		pcall(function()
+			myRoot.CFrame = sleepCF
+			myRoot.AssemblyLinearVelocity = Vector3.zero
+			myRoot.AssemblyAngularVelocity = Vector3.zero
+		end)
+
+		pcall(function()
+			myHum.PlatformStand = true
+		end)
+
+		-- Kamera bebas
+		local cam = workspace.CurrentCamera
+		if cam then
+			cam.CameraType = Enum.CameraType.Custom
+		end
+
+		-- AUTO ATTACK
+		if myHum.Health > 0 and myHum.JumpPower > 0 then
+			attack()
+		end
+	end)
+end
+
+local function stopTeleportPlayer()
+	teleportActive = false
+	if teleportConnection then
+		teleportConnection:Disconnect()
+		teleportConnection = nil
+	end
+	local myChar = player.Character
+	if myChar then
+		local myHum = myChar:FindFirstChildOfClass("Humanoid")
+		if myHum then
+			pcall(function()
+				myHum.PlatformStand = false
+				myHum.JumpPower = 50
+				myHum.WalkSpeed = 16
+				myHum:ChangeState(Enum.HumanoidStateType.GettingUp)
+			end)
+		end
+	end
+end
+
+
 local function loadFarmPanel()
 	clearContent()
 	local order = 1
-	createSectionHeader("COMBAT", order); order += 1
-	createToggle("Auto Farm", "Otomatis farming terus menerus", order, function(state)
-		State.AutoFarm = state
-		notif("Auto Farm: " .. (state and "ON" or "OFF"))
-	end, State.AutoFarm); order += 1
-	createToggle("Auto Block", "Otomatis block serangan", order, function(state)
-		State.AutoBlock = state
-		notif("Auto Block: " .. (state and "ON" or "OFF"))
-	end, State.AutoBlock); order += 1
+	createSectionHeader("TELEPORT", order); order += 1
+
+	createDropdown("Target Player", "Pilih player target", order, function(value)
+		State.SelectedTarget = value
+	end, State.SelectedTarget); order += 1
+
+	createToggle("Teleport Player", "Auto TP + Basic Attack + Kamera Bebas", order, function(state)
+		State.TeleportPlayer = state
+		if state then
+			if not State.SelectedTarget then
+				notif("Pilih target dulu!")
+				State.TeleportPlayer = false
+				return
+			end
+			startTeleportPlayer()
+			notif("Teleport Player: ON - " .. State.SelectedTarget)
+		else
+			stopTeleportPlayer()
+			notif("Teleport Player: OFF")
+		end
+	end, State.TeleportPlayer); order += 1
 end
 
 local function loadMiscPanel()
@@ -1614,22 +1877,6 @@ local function loadMiscPanel()
 		end
 		notif("Psikir Liar Tp: " .. (state and "ON" or "OFF"))
 	end, State.PsikirLiar); order += 1
-
-	createSectionHeader("TELEPORT", order); order += 1
-
-	createDropdown("Target Player", "Pilih player target", order, function(value)
-		State.SelectedTarget = value
-	end, State.SelectedTarget); order += 1
-
-	createToggle("Teleport Player", "Teleport ke player yang dipilih", order, function(state)
-		State.TeleportPlayer = state
-		notif("Teleport Player: " .. (state and "ON" or "OFF"))
-	end, State.TeleportPlayer); order += 1
-
-	createToggle("Teleport Random", "Teleport terus ke player acak", order, function(state)
-		State.TeleportRandom = state
-		notif("Teleport Random: " .. (state and "ON" or "OFF"))
-	end, State.TeleportRandom); order += 1
 end
 
 local function loadSettingsPanel()
