@@ -1,5 +1,5 @@
 --============================================================
--- ZORX HUB - TSB EDITION (FINAL)
+-- ZORX HUB - TSB EDITION (FINAL + HOME BARU + INFO TAB)
 --============================================================
 
 local Players = game:GetService("Players")
@@ -44,7 +44,6 @@ local function notif(text)
 		})
 	end)
 end
-
 
 --============================================================
 -- FIX LAG SYSTEM
@@ -185,7 +184,6 @@ local function fixLagStop()
 
     notif("OFF - Setting di-restore")
 end
-
 
 --============================================================
 -- FLY SYSTEM (VERSI LAMA - MULUS)
@@ -335,7 +333,6 @@ player.CharacterAdded:Connect(function()
 		flyStart()
 	end
 end)
-
 
 --============================================================
 -- AIMLOCK SYSTEM
@@ -509,7 +506,6 @@ local function aimlockForceStop()
     removeOutline()
 end
 
-
 --============================================================
 -- AWAKENING HIGHLIGHT
 --============================================================
@@ -642,7 +638,6 @@ local function awakenStop()
     end
     awakenTracked = {}
 end
-
 
 --============================================================
 -- ANTI DEATH PUNCH
@@ -909,7 +904,6 @@ local function stopAntiDeathPunch()
     if awakenStop then awakenStop() end
 end
 
-
 --============================================================
 -- PSIKIR LIAR TP (CRUSHING PULL) - ON/OFF
 --============================================================
@@ -1096,7 +1090,6 @@ local function stopPsikirLiar()
     end
 end
 
-
 --============================================================
 -- UI CODE
 --============================================================
@@ -1269,7 +1262,6 @@ local ScrollList = Instance.new("UIListLayout")
 ScrollList.SortOrder = Enum.SortOrder.LayoutOrder
 ScrollList.Padding = UDim.new(0, 8)
 ScrollList.Parent = Scroll
-
 
 local function createSectionHeader(text, order)
 	local header = Instance.new("TextLabel")
@@ -1581,7 +1573,6 @@ local function createDropdown(titleText, descText, order, callback, initialState
 	return row, dropBox
 end
 
-
 local sidebarButtons = {}
 local activeTab = nil
 
@@ -1675,8 +1666,7 @@ local function clearContent()
 	end
 end
 
-
--- ===== TELEPORT PLAYER FUNCTION (PINDAH KE SINI) =====
+-- ===== TELEPORT PLAYER FUNCTION =====
 local teleportConnection = nil
 local teleportActive = false
 
@@ -1804,7 +1794,6 @@ local function stopTeleportPlayer()
 	end
 end
 
-
 local function loadFarmPanel()
 	clearContent()
 	local order = 1
@@ -1896,15 +1885,298 @@ end
 
 local function loadHomePanel()
 	clearContent()
-	local order = 1
-	createSectionHeader("HOME", order); order += 1
-	createToggle("Placeholder", "Coming soon...", order, function() end); order += 1
+	
+	-- ===== CARD WELCOME =====
+	local welcomeCard = Instance.new("Frame")
+	welcomeCard.Size = UDim2.new(1, 0, 0, 85)
+	welcomeCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	welcomeCard.BorderSizePixel = 0
+	welcomeCard.LayoutOrder = 1
+	welcomeCard.Parent = Scroll
+	
+	local wCorner = Instance.new("UICorner")
+	wCorner.CornerRadius = UDim.new(0, 8)
+	wCorner.Parent = welcomeCard
+	
+	local wStroke = Instance.new("UIStroke")
+	wStroke.Color = Color3.fromRGB(55, 55, 68)
+	wStroke.Thickness = 1
+	wStroke.Parent = welcomeCard
+	
+	local wTitle = Instance.new("TextLabel")
+	wTitle.Size = UDim2.new(1, -30, 0, 22)
+	wTitle.Position = UDim2.new(0, 14, 0, 10)
+	wTitle.BackgroundTransparency = 1
+	wTitle.Text = "Welcome to Zorx"
+	wTitle.TextColor3 = Colors.Text
+	wTitle.Font = Enum.Font.GothamBold
+	wTitle.TextSize = 14
+	wTitle.TextXAlignment = Enum.TextXAlignment.Left
+	wTitle.Parent = welcomeCard
+	
+	local wDesc = Instance.new("TextLabel")
+	wDesc.Size = UDim2.new(1, -28, 0, 45)
+	wDesc.Position = UDim2.new(0, 14, 0, 35)
+	wDesc.BackgroundTransparency = 1
+	wDesc.Text = "Welcome! This hub is designed to keep every feature organized, responsive, and easy to use. Select a tab from the sidebar to get started."
+	wDesc.TextColor3 = Color3.fromRGB(170, 170, 190)
+	wDesc.Font = Enum.Font.Gotham
+	wDesc.TextSize = 10
+	wDesc.TextXAlignment = Enum.TextXAlignment.Left
+	wDesc.TextYAlignment = Enum.TextYAlignment.Top
+	wDesc.TextWrapped = true
+	wDesc.Parent = welcomeCard
+	
+	-- ===== CARD GAMBAR =====
+	local imageCard = Instance.new("Frame")
+	imageCard.Size = UDim2.new(1, 0, 0, 170)
+	imageCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	imageCard.BorderSizePixel = 0
+	imageCard.ClipsDescendants = true
+	imageCard.LayoutOrder = 2
+	imageCard.Parent = Scroll
+	
+	local iCorner = Instance.new("UICorner")
+	iCorner.CornerRadius = UDim.new(0, 8)
+	iCorner.Parent = imageCard
+	
+	local imgContainer = Instance.new("Frame")
+	imgContainer.Size = UDim2.new(1, -4, 1, -4)
+	imgContainer.Position = UDim2.new(0, 2, 0, 2)
+	imgContainer.BackgroundTransparency = 1
+	imgContainer.BorderSizePixel = 0
+	imgContainer.ClipsDescendants = true
+	imgContainer.Parent = imageCard
+	
+	local icCorner = Instance.new("UICorner")
+	icCorner.CornerRadius = UDim.new(0, 6)
+	icCorner.Parent = imgContainer
+	
+	local img = Instance.new("ImageLabel")
+	img.Size = UDim2.new(1, 0, 1, 0)
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Image = "rbxassetid://138859759137296"
+	img.ScaleType = Enum.ScaleType.Crop
+	img.Parent = imgContainer
+	
+	local iStroke = Instance.new("UIStroke")
+	iStroke.Color = Colors.Stroke
+	iStroke.Thickness = 0.5
+	iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	iStroke.Parent = imageCard
 end
 
+local function loadInfoPanel()
+	clearContent()
+	
+	-- ===== CARD COMMUNITY =====
+	local communityCard = Instance.new("Frame")
+	communityCard.Size = UDim2.new(1, 0, 0, 145)
+	communityCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	communityCard.BorderSizePixel = 0
+	communityCard.LayoutOrder = 1
+	communityCard.Parent = Scroll
+	
+	local cCorner = Instance.new("UICorner")
+	cCorner.CornerRadius = UDim.new(0, 8)
+	cCorner.Parent = communityCard
+	
+	local cStroke = Instance.new("UIStroke")
+	cStroke.Color = Color3.fromRGB(55, 55, 68)
+	cStroke.Thickness = 1
+	cStroke.Parent = communityCard
+	
+	-- Logo box
+	local logoBox = Instance.new("Frame")
+	logoBox.Size = UDim2.new(0, 46, 0, 46)
+	logoBox.Position = UDim2.new(0, 14, 0, 14)
+	logoBox.BackgroundColor3 = Color3.fromRGB(42, 42, 55)
+	logoBox.BorderSizePixel = 0
+	logoBox.ClipsDescendants = true
+	logoBox.Parent = communityCard
+	
+	local logoCorner = Instance.new("UICorner")
+	logoCorner.CornerRadius = UDim.new(0, 8)
+	logoCorner.Parent = logoBox
+	
+	local logoStroke = Instance.new("UIStroke")
+	logoStroke.Color = Color3.fromRGB(160, 80, 255)
+	logoStroke.Thickness = 1
+	logoStroke.Parent = logoBox
+	
+	local logoImg = Instance.new("ImageLabel")
+	logoImg.Size = UDim2.new(1, 0, 1, 0)
+	logoImg.BackgroundTransparency = 1
+	logoImg.Image = "rbxassetid://77776661633653"
+	logoImg.ScaleType = Enum.ScaleType.Crop
+	logoImg.Parent = logoBox
+	
+	local cTitle = Instance.new("TextLabel")
+	cTitle.Size = UDim2.new(1, -80, 0, 18)
+	cTitle.Position = UDim2.new(0, 72, 0, 14)
+	cTitle.BackgroundTransparency = 1
+	cTitle.Text = "Zorx Community"
+	cTitle.TextColor3 = Colors.Text
+	cTitle.Font = Enum.Font.GothamBold
+	cTitle.TextSize = 12
+	cTitle.TextXAlignment = Enum.TextXAlignment.Left
+	cTitle.Parent = communityCard
+	
+	local cInfo = Instance.new("TextLabel")
+	cInfo.Size = UDim2.new(1, -80, 0, 30)
+	cInfo.Position = UDim2.new(0, 72, 0, 34)
+	cInfo.BackgroundTransparency = 1
+	cInfo.Text = "- Version: v5.0\n- Last Update: 10 Oktober 2026"
+	cInfo.TextColor3 = Color3.fromRGB(170, 170, 190)
+	cInfo.Font = Enum.Font.Gotham
+	cInfo.TextSize = 10
+	cInfo.TextXAlignment = Enum.TextXAlignment.Left
+	cInfo.TextYAlignment = Enum.TextYAlignment.Top
+	cInfo.Parent = communityCard
+	
+	-- Tombol Copy Discord
+	local copyDiscordBtn = Instance.new("TextButton")
+	copyDiscordBtn.Size = UDim2.new(0.5, -18, 0, 32)
+	copyDiscordBtn.Position = UDim2.new(0, 14, 0, 100)
+	copyDiscordBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+	copyDiscordBtn.BorderSizePixel = 0
+	copyDiscordBtn.Text = ""
+	copyDiscordBtn.AutoButtonColor = false
+	copyDiscordBtn.Parent = communityCard
+	
+	local cdCorner = Instance.new("UICorner")
+	cdCorner.CornerRadius = UDim.new(0, 6)
+	cdCorner.Parent = copyDiscordBtn
+	
+	local cdStroke = Instance.new("UIStroke")
+	cdStroke.Color = Color3.fromRGB(45, 60, 48)
+	cdStroke.Thickness = 1
+	cdStroke.Parent = copyDiscordBtn
+	
+	local cdText = Instance.new("TextLabel")
+	cdText.Size = UDim2.new(1, -40, 1, 0)
+	cdText.Position = UDim2.new(0, 12, 0, 0)
+	cdText.BackgroundTransparency = 1
+	cdText.Text = "Copy Discord Invite"
+	cdText.TextColor3 = Color3.fromRGB(230, 240, 235)
+	cdText.Font = Enum.Font.GothamBold
+	cdText.TextSize = 11
+	cdText.TextXAlignment = Enum.TextXAlignment.Left
+	cdText.Parent = copyDiscordBtn
+	
+	local cdIcon = Instance.new("TextLabel")
+	cdIcon.Size = UDim2.new(0, 20, 1, 0)
+	cdIcon.Position = UDim2.new(1, -28, 0, 0)
+	cdIcon.BackgroundTransparency = 1
+	cdIcon.Text = "🔗"
+	cdIcon.TextSize = 16
+	cdIcon.Font = Enum.Font.GothamBold
+	cdIcon.TextColor3 = Color3.fromRGB(230, 240, 235)
+	cdIcon.TextXAlignment = Enum.TextXAlignment.Center
+	cdIcon.TextYAlignment = Enum.TextYAlignment.Center
+	cdIcon.Parent = copyDiscordBtn
+	
+	-- Tombol Update Info
+	local updateBtn = Instance.new("TextButton")
+	updateBtn.Size = UDim2.new(0.5, -18, 0, 32)
+	updateBtn.Position = UDim2.new(0.5, 4, 0, 100)
+	updateBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+	updateBtn.BorderSizePixel = 0
+	updateBtn.Text = ""
+	updateBtn.AutoButtonColor = false
+	updateBtn.Parent = communityCard
+	
+	local udCorner = Instance.new("UICorner")
+	udCorner.CornerRadius = UDim.new(0, 6)
+	udCorner.Parent = updateBtn
+	
+	local udStroke = Instance.new("UIStroke")
+	udStroke.Color = Color3.fromRGB(45, 60, 48)
+	udStroke.Thickness = 1
+	udStroke.Parent = updateBtn
+	
+	local udText = Instance.new("TextLabel")
+	udText.Size = UDim2.new(1, -40, 1, 0)
+	udText.Position = UDim2.new(0, 12, 0, 0)
+	udText.BackgroundTransparency = 1
+	udText.Text = "Update Info"
+	udText.TextColor3 = Color3.fromRGB(230, 240, 235)
+	udText.Font = Enum.Font.GothamBold
+	udText.TextSize = 11
+	udText.TextXAlignment = Enum.TextXAlignment.Left
+	udText.Parent = updateBtn
+	
+	local udIcon = Instance.new("ImageLabel")
+	udIcon.Size = UDim2.new(0, 18, 0, 18)
+	udIcon.Position = UDim2.new(1, -28, 0.5, -9)
+	udIcon.BackgroundTransparency = 1
+	udIcon.Image = "rbxassetid://3926305904"
+	udIcon.ImageColor3 = Color3.fromRGB(230, 240, 235)
+	udIcon.ImageRectOffset = Vector2.new(764, 84)
+	udIcon.ImageRectSize = Vector2.new(36, 36)
+	udIcon.Parent = updateBtn
+	
+	-- ===== FUNGSI TOMBOL =====
+	copyDiscordBtn.MouseButton1Click:Connect(function()
+		local copied = false
+		pcall(function()
+			if setclipboard then
+				setclipboard("https://discord.gg/3MrpqYycs")
+				copied = true
+			elseif toclipboard then
+				toclipboard("https://discord.gg/3MrpqYycs")
+				copied = true
+			end
+		end)
+		if copied then
+			notif("Discord invite copied!")
+		else
+			notif("Gagal copy")
+		end
+	end)
+	
+	copyDiscordBtn.MouseEnter:Connect(function()
+		TweenService:Create(copyDiscordBtn, TweenInfo.new(0.15), {
+			BackgroundColor3 = Color3.fromRGB(38, 48, 42)
+		}):Play()
+	end)
+	copyDiscordBtn.MouseLeave:Connect(function()
+		TweenService:Create(copyDiscordBtn, TweenInfo.new(0.15), {
+			BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+		}):Play()
+	end)
+	
+	updateBtn.MouseButton1Click:Connect(function()
+		notif("Checking for update...")
+		local rotateInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+		TweenService:Create(udIcon, rotateInfo, {Rotation = 360}):Play()
+		task.wait(0.8)
+		udIcon.Rotation = 0
+		cInfo.Text = "- Version: v5.0\n- Last Update: 10 Oktober 2026"
+		notif("Script is up to date!")
+	end)
+	
+	updateBtn.MouseEnter:Connect(function()
+		TweenService:Create(updateBtn, TweenInfo.new(0.15), {
+			BackgroundColor3 = Color3.fromRGB(38, 48, 42)
+		}):Play()
+	end)
+	updateBtn.MouseLeave:Connect(function()
+		TweenService:Create(updateBtn, TweenInfo.new(0.15), {
+			BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+		}):Play()
+	end)
+end
+
+--============================================================
+-- SIDEBAR BUTTONS
+--============================================================
 createSidebarButton("Home", 1, loadHomePanel)
 createSidebarButton("Farm", 2, loadFarmPanel)
 createSidebarButton("Misc", 3, loadMiscPanel)
 createSidebarButton("Settings", 4, loadSettingsPanel)
+createSidebarButton("Info", 5, loadInfoPanel)
 
 task.wait(0.1)
 if sidebarButtons[2] then
