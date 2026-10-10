@@ -2006,11 +2006,16 @@ local function loadInfoPanel()
 	logoStroke.Parent = logoBox
 	
 	local logoImg = Instance.new("ImageLabel")
-	logoImg.Size = UDim2.new(1, 0, 1, 0)
-	logoImg.BackgroundTransparency = 1
-	logoImg.Image = "rbxassetid://77776661633653"
-	logoImg.ScaleType = Enum.ScaleType.Crop
-	logoImg.Parent = logoBox
+logoImg.Size = UDim2.new(1, -8, 1, -8)
+logoImg.Position = UDim2.new(0, 4, 0, 4)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://77776661633653"
+logoImg.ScaleType = Enum.ScaleType.Fit
+logoImg.Parent = logoBox
+
+local logoImgCorner = Instance.new("UICorner")
+logoImgCorner.CornerRadius = UDim.new(0, 4)
+logoImgCorner.Parent = logoImg
 	
 	local cTitle = Instance.new("TextLabel")
 	cTitle.Size = UDim2.new(1, -80, 0, 18)
