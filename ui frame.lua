@@ -241,21 +241,20 @@ PopupLayer.Parent = ScreenGui
 local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.AnchorPoint = Vector2.new(0.5, 0.5)
-Main.Size = UDim2.new(0, 700, 0, 450)
+Main.Size = UDim2.new(0, 500, 0, 320)
 Main.Position = UDim2.fromScale(0.5, 0.5)
 Main.BackgroundColor3 = Colors.Background
 Main.BorderSizePixel = 0
 Main.Active = true
 Main.Draggable = true
-Main.ClipsDescendants = false
+Main.ClipsDescendants = false -- biarkan UIStroke pinggir tidak terpotong
 Main.Parent = ScreenGui
-Main.ClipsDescendants = true
 Main.BorderSizePixel = 0
 
 
 local MainSizeLimit = Instance.new("UISizeConstraint")
-MainSizeLimit.MinSize = Vector2.new(340, 280)
-MainSizeLimit.MaxSize = Vector2.new(760, 520)
+MainSizeLimit.MinSize = Vector2.new(300, 240)
+MainSizeLimit.MaxSize = Vector2.new(700, 450)
 MainSizeLimit.Parent = Main
 
 local MainCorner = Instance.new("UICorner")
@@ -508,10 +507,10 @@ end)
 
 local isMaximized = false
 
-local NORMAL_SIZE = UDim2.new(0, 700, 0, 450)
+local NORMAL_SIZE = UDim2.new(0, 500, 0, 320)
 local NORMAL_POS = UDim2.fromScale(0.5, 0.5)
 
-local MAX_SIZE = UDim2.new(0.94, 0, 0.90, 0)
+local MAX_SIZE = UDim2.new(0, 700, 0, 450)
 local MAX_POS = UDim2.fromScale(0.5, 0.5)
 
 MaximizeBtn.MouseButton1Click:Connect(function()
@@ -848,9 +847,9 @@ end)
 
 local DiscordPill = Instance.new("TextButton")
 DiscordPill.Name = "DiscordPill"
-DiscordPill.Size = UDim2.new(1, -16, 0, 42)
+DiscordPill.Size = UDim2.new(1, -12, 0, 30)
 DiscordPill.AnchorPoint = Vector2.new(0.5, 1)
-DiscordPill.Position = UDim2.new(0.5, 0, 1, -8)
+DiscordPill.Position = UDim2.new(0.5, 0, 1, -6)
 DiscordPill.BackgroundColor3 = DefaultPillBg
 DiscordPill.BorderSizePixel = 0
 DiscordPill.Text = ""
@@ -859,7 +858,7 @@ DiscordPill.ZIndex = 5
 DiscordPill.Parent = Sidebar
 
 local dpCorner = Instance.new("UICorner")
-dpCorner.CornerRadius = UDim.new(0, 6)
+dpCorner.CornerRadius = UDim.new(0, 5)
 dpCorner.Parent = DiscordPill
 
 local dpStroke = Instance.new("UIStroke")
@@ -869,8 +868,8 @@ dpStroke.Parent = DiscordPill
 
 local DiscordIcon = Instance.new("ImageLabel")
 DiscordIcon.Name = "DiscordIcon"
-DiscordIcon.Size = UDim2.new(0, 18, 0, 18)
-DiscordIcon.Position = UDim2.new(0, 7, 0.5, -9)
+DiscordIcon.Size = UDim2.new(0, 14, 0, 14)
+DiscordIcon.Position = UDim2.new(0, 5, 0.5, -7)
 DiscordIcon.BackgroundTransparency = 1
 DiscordIcon.Image = "rbxassetid://98671378613860"
 DiscordIcon.ScaleType = Enum.ScaleType.Fit
@@ -878,26 +877,26 @@ DiscordIcon.Parent = DiscordPill
 
 local DiscordTitle = Instance.new("TextLabel")
 DiscordTitle.Name = "DiscordTitle"
-DiscordTitle.Size = UDim2.new(1, -34, 0, 14)
-DiscordTitle.Position = UDim2.new(0, 31, 0, 6)
+DiscordTitle.Size = UDim2.new(1, -25, 0, 11)
+DiscordTitle.Position = UDim2.new(0, 23, 0, 2)
 DiscordTitle.BackgroundTransparency = 1
 DiscordTitle.Text = "Discord"
 DiscordTitle.TextColor3 = DefaultPillText
 DiscordTitle.Font = Enum.Font.GothamBold
-DiscordTitle.TextSize = 10
+DiscordTitle.TextSize = 9
 DiscordTitle.TextXAlignment = Enum.TextXAlignment.Left
 DiscordTitle.TextTruncate = Enum.TextTruncate.AtEnd
 DiscordTitle.Parent = DiscordPill
 
 local DiscordLink = Instance.new("TextLabel")
 DiscordLink.Name = "DiscordLink"
-DiscordLink.Size = UDim2.new(1, -34, 0, 12)
-DiscordLink.Position = UDim2.new(0, 31, 0, 22)
+DiscordLink.Size = UDim2.new(1, -25, 0, 9)
+DiscordLink.Position = UDim2.new(0, 23, 0, 16)
 DiscordLink.BackgroundTransparency = 1
 DiscordLink.Text = "discord.gg/3MrpqYycs"
 DiscordLink.TextColor3 = Colors.SubText
 DiscordLink.Font = Enum.Font.Gotham
-DiscordLink.TextSize = 8
+DiscordLink.TextSize = 7
 DiscordLink.TextXAlignment = Enum.TextXAlignment.Left
 DiscordLink.TextTruncate = Enum.TextTruncate.AtEnd
 DiscordLink.Parent = DiscordPill
@@ -1066,6 +1065,28 @@ RunService.Heartbeat:Connect(function()
 
     TopDivider.BackgroundColor3 = rainbowColor
     SidebarDivider.BackgroundColor3 = rainbowColor
+
+    -- Rainbow untuk SEMUA garis tepi, termasuk elemen yang dibuat belakangan.
+    -- UIStroke di Main dan PopupLayer tidak harus terdaftar di allBorders.
+    for _, root in ipairs({Main, PopupLayer}) do
+        if root and root.Parent then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("UIStroke") then
+                    obj.Color = rainbowColor
+                elseif obj:IsA("Frame") and (
+                    obj.Name == "TopDivider"
+                    or obj.Name == "SidebarDivider"
+                ) then
+                    obj.BackgroundColor3 = rainbowColor
+                end
+            end
+        end
+    end
+
+    -- Garis utama tetap ikut Rainbow.
+    if MainStroke and MainStroke.Parent then
+        MainStroke.Color = rainbowColor
+    end
 end)
 
 --============================================================
@@ -1788,7 +1809,7 @@ end)
 
 
 --============================================================
--- RESPONSIVE FRAME - UKURAN NORMAL 700 x 450
+-- RESPONSIVE FRAME - UKURAN NORMAL 500 x 320
 --============================================================
 
 local function updateMainSize()
@@ -1801,11 +1822,11 @@ local function updateMainSize()
 
     local viewport = camera.ViewportSize
 
-    local width = math.min(700, viewport.X * 0.90)
-    local height = math.min(450, viewport.Y * 0.85)
+    local width = math.min(500, viewport.X * 0.90)
+    local height = math.min(320, viewport.Y * 0.85)
 
-    width = math.max(340, width)
-    height = math.max(280, height)
+    width = math.max(300, width)
+    height = math.max(240, height)
 
     Main.Size = UDim2.fromOffset(width, height)
     Main.Position = UDim2.fromScale(0.5, 0.5)
