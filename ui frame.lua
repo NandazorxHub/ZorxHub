@@ -1,261 +1,115 @@
-
 --============================================================
--- ZORX HUB - FIX TOTAL UI
--- PART 1/5
--- SERVICE, COLORS, MAIN FRAME, TOP BAR, PILLS
+-- ZORX HUB - FIX TOTAL (CLIP + UKURAN)
 --============================================================
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
-local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Hapus UI lama agar tidak duplikat
-local oldUI = playerGui:FindFirstChild("ZorXHub")
-if oldUI then
-    oldUI:Destroy()
-end
-
---============================================================
--- BASE COLORS
---============================================================
-
+-- ===== BASE COLORS =====
 local Colors = {
-    Background = Color3.fromRGB(15, 15, 18),
-    Sidebar = Color3.fromRGB(18, 18, 22),
-    Panel = Color3.fromRGB(22, 22, 27),
-    Slot = Color3.fromRGB(28, 28, 34),
-    SlotHover = Color3.fromRGB(38, 38, 46),
-    Text = Color3.fromRGB(240, 240, 240),
-    SubText = Color3.fromRGB(140, 140, 150),
-    Stroke = Color3.fromRGB(45, 45, 55),
-    PillBg = Color3.fromRGB(28, 28, 34),
-    PillStroke = Color3.fromRGB(45, 45, 55),
-    PillText = Color3.fromRGB(240, 240, 240),
+	Background   = Color3.fromRGB(15, 15, 18),
+	Sidebar      = Color3.fromRGB(18, 18, 22),
+	Panel        = Color3.fromRGB(22, 22, 27),
+	Slot         = Color3.fromRGB(28, 28, 34),
+	SlotHover    = Color3.fromRGB(38, 38, 46),
+	Text         = Color3.fromRGB(240, 240, 240),
+	SubText      = Color3.fromRGB(140, 140, 150),
+	Stroke       = Color3.fromRGB(45, 45, 55),
+	PillBg       = Color3.fromRGB(28, 28, 34),
+	PillStroke   = Color3.fromRGB(45, 45, 55),
+	PillText     = Color3.fromRGB(240, 240, 240),
 }
 
-local DefaultPillBg = Colors.PillBg
-local DefaultPillStroke = Colors.PillStroke
-local DefaultPillText = Colors.PillText
-local DefaultBorder = Colors.Stroke
+local DefaultPillBg = Color3.fromRGB(28, 28, 34)
+local DefaultPillStroke = Color3.fromRGB(45, 45, 55)
+local DefaultPillText = Color3.fromRGB(240, 240, 240)
+local DefaultBorder = Color3.fromRGB(45, 45, 55)
 
 local InfoLogoBorder = Color3.fromRGB(160, 80, 255)
 local NoneDotColor = Color3.fromRGB(45, 45, 55)
 
---============================================================
--- AUTO DETECT GAME
---============================================================
-
+-- ===== AUTO DETECT GAME =====
 local function getGameName()
-    local name = game.Name
-
-    local success, info = pcall(function()
-        return MarketplaceService:GetProductInfo(game.PlaceId)
-    end)
-
-    if success and info and info.Name then
-        name = info.Name
-    end
-
-    return name or "Unknown Game"
+	local name = "Unknown Game"
+	pcall(function()
+		local ok, info = pcall(function()
+			return MarketplaceService:GetProductInfo(game.PlaceId)
+		end)
+		if ok and info and info.Name then
+			name = info.Name
+		else
+			name = game.Name
+		end
+	end)
+	if not name or name == "" then name = "Unknown Game" end
+	return name
 end
 
-local function getTodayDate()
-    return os.date("%d/%m/%Y")
-end
-
---============================================================
--- THEME COLORS
---============================================================
-
+-- ===== THEME COLORS =====
 local ThemeColors = {
-    None = {
-        bg = DefaultPillBg,
-        stroke = DefaultPillStroke,
-        text = DefaultPillText,
-        border = DefaultBorder,
-        infoLogo = InfoLogoBorder
-    },
-
-    Biru = {
-        bg = Color3.fromRGB(25, 55, 130),
-        stroke = Color3.fromRGB(60, 120, 220),
-        text = Color3.fromRGB(220, 235, 255),
-        border = Color3.fromRGB(60, 120, 220),
-        infoLogo = Color3.fromRGB(60, 120, 220)
-    },
-
-    Ungu = {
-        bg = Color3.fromRGB(80, 35, 130),
-        stroke = Color3.fromRGB(160, 90, 220),
-        text = Color3.fromRGB(235, 220, 255),
-        border = Color3.fromRGB(160, 90, 220),
-        infoLogo = Color3.fromRGB(160, 90, 220)
-    },
-
-    Hijau = {
-        bg = Color3.fromRGB(25, 100, 50),
-        stroke = Color3.fromRGB(60, 180, 90),
-        text = Color3.fromRGB(220, 255, 225),
-        border = Color3.fromRGB(60, 180, 90),
-        infoLogo = Color3.fromRGB(60, 180, 90)
-    },
-
-    Kuning = {
-        bg = Color3.fromRGB(140, 120, 25),
-        stroke = Color3.fromRGB(220, 200, 60),
-        text = Color3.fromRGB(255, 250, 215),
-        border = Color3.fromRGB(220, 200, 60),
-        infoLogo = Color3.fromRGB(220, 200, 60)
-    },
-
-    Oren = {
-        bg = Color3.fromRGB(150, 75, 20),
-        stroke = Color3.fromRGB(230, 140, 50),
-        text = Color3.fromRGB(255, 235, 215),
-        border = Color3.fromRGB(230, 140, 50),
-        infoLogo = Color3.fromRGB(230, 140, 50)
-    },
-
-    Merah = {
-        bg = Color3.fromRGB(130, 25, 30),
-        stroke = Color3.fromRGB(220, 60, 70),
-        text = Color3.fromRGB(255, 220, 220),
-        border = Color3.fromRGB(220, 60, 70),
-        infoLogo = Color3.fromRGB(220, 60, 70)
-    },
-
-    Pink = {
-        bg = Color3.fromRGB(140, 40, 90),
-        stroke = Color3.fromRGB(230, 100, 160),
-        text = Color3.fromRGB(255, 225, 240),
-        border = Color3.fromRGB(230, 100, 160),
-        infoLogo = Color3.fromRGB(230, 100, 160)
-    },
-
-    Cyan = {
-        bg = Color3.fromRGB(20, 100, 110),
-        stroke = Color3.fromRGB(60, 200, 210),
-        text = Color3.fromRGB(215, 250, 255),
-        border = Color3.fromRGB(60, 200, 210),
-        infoLogo = Color3.fromRGB(60, 200, 210)
-    },
-
-    Putih = {
-        bg = Color3.fromRGB(180, 180, 185),
-        stroke = Color3.fromRGB(240, 240, 245),
-        text = Color3.fromRGB(30, 30, 35),
-        border = Color3.fromRGB(240, 240, 245),
-        infoLogo = Color3.fromRGB(240, 240, 245)
-    },
-
-    Hitam = {
-        bg = Color3.fromRGB(15, 15, 18),
-        stroke = Color3.fromRGB(50, 50, 55),
-        text = Color3.fromRGB(240, 240, 240),
-        border = Color3.fromRGB(50, 50, 55),
-        infoLogo = Color3.fromRGB(50, 50, 55)
-    },
-
-    Emas = {
-        bg = Color3.fromRGB(140, 100, 20),
-        stroke = Color3.fromRGB(230, 190, 60),
-        text = Color3.fromRGB(255, 245, 210),
-        border = Color3.fromRGB(230, 190, 60),
-        infoLogo = Color3.fromRGB(230, 190, 60)
-    },
-
-    Abu = {
-        bg = Color3.fromRGB(60, 60, 70),
-        stroke = Color3.fromRGB(120, 120, 135),
-        text = Color3.fromRGB(240, 240, 240),
-        border = Color3.fromRGB(120, 120, 135),
-        infoLogo = Color3.fromRGB(120, 120, 135)
-    },
-
-    Lime = {
-        bg = Color3.fromRGB(80, 140, 25),
-        stroke = Color3.fromRGB(160, 230, 60),
-        text = Color3.fromRGB(240, 255, 215),
-        border = Color3.fromRGB(160, 230, 60),
-        infoLogo = Color3.fromRGB(160, 230, 60)
-    },
-
-    Marun = {
-        bg = Color3.fromRGB(80, 20, 30),
-        stroke = Color3.fromRGB(150, 50, 60),
-        text = Color3.fromRGB(255, 220, 220),
-        border = Color3.fromRGB(150, 50, 60),
-        infoLogo = Color3.fromRGB(150, 50, 60)
-    },
-
-    Navy = {
-        bg = Color3.fromRGB(15, 25, 70),
-        stroke = Color3.fromRGB(45, 70, 150),
-        text = Color3.fromRGB(215, 225, 255),
-        border = Color3.fromRGB(45, 70, 150),
-        infoLogo = Color3.fromRGB(45, 70, 150)
-    },
-
-    Rainbow = {
-        bg = DefaultPillBg,
-        stroke = DefaultPillStroke,
-        text = DefaultPillText,
-        border = DefaultBorder,
-        infoLogo = InfoLogoBorder
-    },
+	None   = { bg = DefaultPillBg,       stroke = DefaultPillStroke,           text = DefaultPillText,           border = DefaultBorder,  infoLogo = InfoLogoBorder },
+	Biru   = { bg = Color3.fromRGB(25,55,130),   stroke = Color3.fromRGB(60,120,220),  text = Color3.fromRGB(220,235,255), border = Color3.fromRGB(60,120,220),  infoLogo = Color3.fromRGB(60,120,220) },
+	Ungu   = { bg = Color3.fromRGB(80,35,130),   stroke = Color3.fromRGB(160,90,220),  text = Color3.fromRGB(235,220,255), border = Color3.fromRGB(160,90,220),  infoLogo = Color3.fromRGB(160,90,220) },
+	Hijau  = { bg = Color3.fromRGB(25,100,50),   stroke = Color3.fromRGB(60,180,90),   text = Color3.fromRGB(220,255,225), border = Color3.fromRGB(60,180,90),   infoLogo = Color3.fromRGB(60,180,90) },
+	Kuning = { bg = Color3.fromRGB(140,120,25),  stroke = Color3.fromRGB(220,200,60),  text = Color3.fromRGB(255,250,215), border = Color3.fromRGB(220,200,60),  infoLogo = Color3.fromRGB(220,200,60) },
+	Oren   = { bg = Color3.fromRGB(150,75,20),   stroke = Color3.fromRGB(230,140,50),  text = Color3.fromRGB(255,235,215), border = Color3.fromRGB(230,140,50),  infoLogo = Color3.fromRGB(230,140,50) },
+	Merah  = { bg = Color3.fromRGB(130,25,30),   stroke = Color3.fromRGB(220,60,70),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(220,60,70),   infoLogo = Color3.fromRGB(220,60,70) },
+	Pink   = { bg = Color3.fromRGB(140,40,90),   stroke = Color3.fromRGB(230,100,160), text = Color3.fromRGB(255,225,240), border = Color3.fromRGB(230,100,160), infoLogo = Color3.fromRGB(230,100,160) },
+	Cyan   = { bg = Color3.fromRGB(20,100,110),  stroke = Color3.fromRGB(60,200,210),  text = Color3.fromRGB(215,250,255), border = Color3.fromRGB(60,200,210),  infoLogo = Color3.fromRGB(60,200,210) },
+	Putih  = { bg = Color3.fromRGB(180,180,185), stroke = Color3.fromRGB(240,240,245), text = Color3.fromRGB(30,30,35),    border = Color3.fromRGB(240,240,245), infoLogo = Color3.fromRGB(240,240,245) },
+	Hitam  = { bg = Color3.fromRGB(15,15,18),    stroke = Color3.fromRGB(50,50,55),    text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(50,50,55),    infoLogo = Color3.fromRGB(50,50,55) },
+	Emas   = { bg = Color3.fromRGB(140,100,20),  stroke = Color3.fromRGB(230,190,60),  text = Color3.fromRGB(255,245,210), border = Color3.fromRGB(230,190,60),  infoLogo = Color3.fromRGB(230,190,60) },
+	Abu    = { bg = Color3.fromRGB(60,60,70),    stroke = Color3.fromRGB(120,120,135), text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(120,120,135), infoLogo = Color3.fromRGB(120,120,135) },
+	Lime   = { bg = Color3.fromRGB(80,140,25),   stroke = Color3.fromRGB(160,230,60),  text = Color3.fromRGB(240,255,215), border = Color3.fromRGB(160,230,60),  infoLogo = Color3.fromRGB(160,230,60) },
+	Marun  = { bg = Color3.fromRGB(80,20,30),    stroke = Color3.fromRGB(150,50,60),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(150,50,60),   infoLogo = Color3.fromRGB(150,50,60) },
+	Navy   = { bg = Color3.fromRGB(15,25,70),    stroke = Color3.fromRGB(45,70,150),   text = Color3.fromRGB(215,225,255), border = Color3.fromRGB(45,70,150),   infoLogo = Color3.fromRGB(45,70,150) },
+	Rainbow = { bg = DefaultPillBg, stroke = DefaultPillStroke, text = DefaultPillText, border = DefaultBorder, infoLogo = InfoLogoBorder },
 }
 
 local ActiveTheme = "None"
 local RainbowActive = false
 local RainbowHue = 0
 
---============================================================
--- SCREEN GUI
---============================================================
+local function getTodayDate()
+	local day = os.date("%d")
+	local month = os.date("%m")
+	local year = os.date("%Y")
+	return day .. "/" .. month .. "/" .. year
+end
 
+--============================================================
+-- UI CODE
+--============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZorXHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.DisplayOrder = 20
 ScreenGui.Parent = playerGui
 
 local PopupLayer = Instance.new("Frame")
 PopupLayer.Name = "PopupLayer"
-PopupLayer.Size = UDim2.fromScale(1, 1)
+PopupLayer.Size = UDim2.new(1, 0, 1, 0)
 PopupLayer.BackgroundTransparency = 1
 PopupLayer.ZIndex = 50
 PopupLayer.Parent = ScreenGui
 
---============================================================
--- MAIN FRAME
--- Isi panel akan diperbaiki di PART berikutnya
---============================================================
-
+-- MAIN FRAME (FIX CLIPS)
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.AnchorPoint = Vector2.new(0.5, 0.5)
 Main.Size = UDim2.new(0, 500, 0, 320)
-Main.Position = UDim2.fromScale(0.5, 0.5)
+Main.Position = UDim2.new(0.5, -250, 0.5, -160)
 Main.BackgroundColor3 = Colors.Background
 Main.BorderSizePixel = 0
 Main.Active = true
 Main.Draggable = true
-Main.ClipsDescendants = false -- biarkan UIStroke pinggir tidak terpotong
+Main.ClipsDescendants = true -- FIX UTAMA
 Main.Parent = ScreenGui
-Main.BorderSizePixel = 0
-
-
-local MainSizeLimit = Instance.new("UISizeConstraint")
-MainSizeLimit.MinSize = Vector2.new(300, 240)
-MainSizeLimit.MaxSize = Vector2.new(700, 450)
-MainSizeLimit.Parent = Main
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 8)
@@ -266,14 +120,10 @@ MainStroke.Color = DefaultBorder
 MainStroke.Thickness = 1
 MainStroke.Parent = Main
 
---============================================================
--- TOP BAR
---============================================================
-
+-- ===== TOP BAR =====
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 40)
-TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.Size = UDim2.new(1, 0, 0, 32)
 TopBar.BackgroundColor3 = Colors.Background
 TopBar.BorderSizePixel = 0
 TopBar.ClipsDescendants = true
@@ -304,10 +154,6 @@ Title.TextSize = 11
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
---============================================================
--- PILL ATAS - DIPERTAHANKAN
---============================================================
-
 local PillContainer = Instance.new("Frame")
 PillContainer.Name = "PillContainer"
 PillContainer.Size = UDim2.new(0, 0, 1, 0)
@@ -331,47 +177,48 @@ local allBorders = {}
 local infoLogoBorders = {}
 
 local function registerBorder(stroke)
-    table.insert(allBorders, stroke)
+	table.insert(allBorders, stroke)
 end
 
 local function registerInfoLogoBorder(stroke)
-    table.insert(infoLogoBorders, stroke)
+	table.insert(infoLogoBorders, stroke)
 end
 
 local function createPill(textText, width)
-    local pill = Instance.new("Frame")
-    pill.Name = "Pill"
-    pill.Size = UDim2.new(0, width, 0, 22)
-    pill.BackgroundColor3 = DefaultPillBg
-    pill.BorderSizePixel = 0
-    pill.Parent = PillContainer
+	local pill = Instance.new("Frame")
+	pill.Name = "Pill"
+	pill.Size = UDim2.new(0, width, 0, 22)
+	pill.BackgroundColor3 = DefaultPillBg
+	pill.BorderSizePixel = 0
+	pill.Parent = PillContainer
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent = pill
+	local pCorner = Instance.new("UICorner")
+	pCorner.CornerRadius = UDim.new(0, 5)
+	pCorner.Parent = pill
 
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = DefaultPillStroke
-    stroke.Thickness = 1
-    stroke.Parent = pill
+	local pStroke = Instance.new("UIStroke")
+	pStroke.Color = DefaultPillStroke
+	pStroke.Thickness = 1
+	pStroke.Parent = pill
 
-    local txt = Instance.new("TextLabel")
-    txt.Name = "Text"
-    txt.Size = UDim2.new(1, 0, 1, 0)
-    txt.BackgroundTransparency = 1
-    txt.Text = textText
-    txt.TextColor3 = DefaultPillText
-    txt.Font = Enum.Font.GothamBold
-    txt.TextSize = 10
-    txt.TextXAlignment = Enum.TextXAlignment.Center
-    txt.TextTruncate = Enum.TextTruncate.AtEnd
-    txt.Parent = pill
+	local txt = Instance.new("TextLabel")
+	txt.Name = "Text"
+	txt.Size = UDim2.new(1, 0, 1, 0)
+	txt.Position = UDim2.new(0, 0, 0, 0)
+	txt.BackgroundTransparency = 1
+	txt.Text = textText
+	txt.TextColor3 = DefaultPillText
+	txt.Font = Enum.Font.GothamBold
+	txt.TextSize = 10
+	txt.TextXAlignment = Enum.TextXAlignment.Center
+	txt.TextTruncate = Enum.TextTruncate.AtEnd
+	txt.Parent = pill
 
-    table.insert(allPills, pill)
-    table.insert(allPillStrokes, stroke)
-    table.insert(allPillTexts, txt)
+	table.insert(allPills, pill)
+	table.insert(allPillStrokes, pStroke)
+	table.insert(allPillTexts, txt)
 
-    return pill, txt
+	return pill, txt
 end
 
 local gamePill, gameText = createPill(getGameName(), 170)
@@ -379,35 +226,15 @@ local fpsPill, fpsText = createPill("0", 45)
 local execPill, execText = createPill("Delta", 55)
 
 task.spawn(function()
-    while ScreenGui.Parent do
-        task.wait(5)
-
-        if not ScreenGui.Parent then
-            break
-        end
-
-        local newName = getGameName()
-        if gameText.Text ~= newName then
-            gameText.Text = newName
-        end
-    end
+	while task.wait(5) do
+		local newName = getGameName()
+		if gameText.Text ~= newName then
+			gameText.Text = newName
+		end
+	end
 end)
 
---============================================================
--- PART 1 SELESAI
--- PART 2 dimulai dari tombol Maximize, Close,
--- Minimize, Divider, Sidebar, dan Search.
---============================================================
-
---============================================================
--- ZORX HUB - PART 2/5
--- BUTTONS, SIDEBAR, SEARCH, CONTENT FRAME
---============================================================
-
---============================================================
--- MAXIMIZE BUTTON
---============================================================
-
+-- ===== TOMBOL MAXIMIZE =====
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Name = "MaximizeBtn"
 MaximizeBtn.Size = UDim2.new(0, 26, 0, 26)
@@ -415,14 +242,15 @@ MaximizeBtn.Position = UDim2.new(1, -60, 0.5, -13)
 MaximizeBtn.BackgroundTransparency = 1
 MaximizeBtn.Text = ""
 MaximizeBtn.AutoButtonColor = false
+MaximizeBtn.Active = true
 MaximizeBtn.ZIndex = 10
 MaximizeBtn.Parent = TopBar
 
 local MaximizeIcon = Instance.new("ImageLabel")
 MaximizeIcon.Name = "Icon"
 MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
+MaximizeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
 MaximizeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-MaximizeIcon.Position = UDim2.fromScale(0.5, 0.5)
 MaximizeIcon.BackgroundTransparency = 1
 MaximizeIcon.Image = "rbxassetid://85264421376424"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
@@ -430,10 +258,7 @@ MaximizeIcon.ScaleType = Enum.ScaleType.Fit
 MaximizeIcon.ZIndex = 11
 MaximizeIcon.Parent = MaximizeBtn
 
---============================================================
--- CLOSE BUTTON
---============================================================
-
+-- ===== TOMBOL CLOSE =====
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
@@ -441,14 +266,15 @@ CloseBtn.Position = UDim2.new(1, -30, 0.5, -13)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = ""
 CloseBtn.AutoButtonColor = false
+CloseBtn.Active = true
 CloseBtn.ZIndex = 10
 CloseBtn.Parent = TopBar
 
 local CloseIcon = Instance.new("ImageLabel")
 CloseIcon.Name = "Icon"
 CloseIcon.Size = UDim2.new(0, 16, 0, 16)
+CloseIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
 CloseIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-CloseIcon.Position = UDim2.fromScale(0.5, 0.5)
 CloseIcon.BackgroundTransparency = 1
 CloseIcon.Image = "rbxassetid://85435035697164"
 CloseIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
@@ -456,15 +282,11 @@ CloseIcon.ScaleType = Enum.ScaleType.Fit
 CloseIcon.ZIndex = 11
 CloseIcon.Parent = CloseBtn
 
---============================================================
--- MINIMIZE BUTTON
---============================================================
-
+-- ===== MINIMIZE BUTTON =====
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Name = "MinimizeBtn"
 MinimizeBtn.Size = UDim2.new(0, 45, 0, 45)
-MinimizeBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-MinimizeBtn.Position = UDim2.fromScale(0.5, 0.5)
+MinimizeBtn.Position = UDim2.new(0.5, -22, 0.5, -22)
 MinimizeBtn.BackgroundColor3 = Colors.Background
 MinimizeBtn.BorderSizePixel = 0
 MinimizeBtn.Text = "Z"
@@ -483,124 +305,90 @@ MinimizeStroke.Color = DefaultBorder
 MinimizeStroke.Thickness = 1
 MinimizeStroke.Parent = MinimizeBtn
 
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 10)
-MinCorner.Parent = MinimizeBtn
-
 local function setUIOpen(open)
-    Main.Visible = open
-    PopupLayer.Visible = open
-    MinimizeBtn.Visible = not open
+	Main.Visible = open
+	PopupLayer.Visible = open
+	MinimizeBtn.Visible = not open
 end
 
 CloseBtn.MouseButton1Click:Connect(function()
-    setUIOpen(false)
+	setUIOpen(false)
 end)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
-    setUIOpen(true)
+	setUIOpen(true)
 end)
-
---============================================================
--- MAXIMIZE / RESTORE
---============================================================
 
 local isMaximized = false
 
 local NORMAL_SIZE = UDim2.new(0, 500, 0, 320)
-local NORMAL_POS = UDim2.fromScale(0.5, 0.5)
-
+local NORMAL_POS = UDim2.new(0.5, -250, 0.5, -160)
 local MAX_SIZE = UDim2.new(0, 700, 0, 450)
-local MAX_POS = UDim2.fromScale(0.5, 0.5)
+local MAX_POS = UDim2.new(0.5, -350, 0.5, -225)
 
 MaximizeBtn.MouseButton1Click:Connect(function()
-    isMaximized = not isMaximized
-
-    local targetSize
-    local targetPos
-
-    if isMaximized then
-        targetSize = MAX_SIZE
-        targetPos = MAX_POS
-    else
-        targetSize = NORMAL_SIZE
-        targetPos = NORMAL_POS
-    end
-
-    TweenService:Create(
-        Main,
-        TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {
-            Size = targetSize,
-            Position = targetPos
-        }
-    ):Play()
+	isMaximized = not isMaximized
+	if isMaximized then
+		TweenService:Create(Main, TweenInfo.new(0.3), {
+			Size = MAX_SIZE,
+			Position = MAX_POS
+		}):Play()
+	else
+		TweenService:Create(Main, TweenInfo.new(0.3), {
+			Size = NORMAL_SIZE,
+			Position = NORMAL_POS
+		}):Play()
+	end
 end)
-
---============================================================
--- FPS COUNTER
---============================================================
 
 local frameCount = 0
-local lastTime = os.clock()
-
+local lastTime = tick()
 RunService.RenderStepped:Connect(function()
-    frameCount += 1
-
-    local now = os.clock()
-    if now - lastTime >= 1 then
-        fpsText.Text = tostring(frameCount)
-        frameCount = 0
-        lastTime = now
-    end
+	frameCount = frameCount + 1
+	if tick() - lastTime >= 1 then
+		fpsText.Text = tostring(frameCount)
+		frameCount = 0
+		lastTime = tick()
+	end
 end)
 
---============================================================
--- TOP DIVIDER
---============================================================
-
+-- ===== DIVIDER =====
 local TopDivider = Instance.new("Frame")
 TopDivider.Name = "TopDivider"
 TopDivider.Size = UDim2.new(1, 0, 0, 1)
-TopDivider.Position = UDim2.new(0, 0, 0, 40)
+TopDivider.Position = UDim2.new(0, 0, 0, 32)
 TopDivider.BackgroundColor3 = DefaultBorder
 TopDivider.BorderSizePixel = 0
 TopDivider.Parent = Main
 
---============================================================
--- SIDEBAR
---============================================================
-
+-- ===== SIDEBAR (FIX CLIPS) =====
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
-Sidebar.Size = UDim2.new(0, 140, 1, -41)
-Sidebar.Position = UDim2.new(0, 0, 0, 41)
+Sidebar.Size = UDim2.new(0, 120, 1, -33)
+Sidebar.Position = UDim2.new(0, 0, 0, 33)
 Sidebar.BackgroundColor3 = Colors.Sidebar
 Sidebar.BorderSizePixel = 0
-Sidebar.ClipsDescendants = true
+Sidebar.ClipsDescendants = true -- FIX
 Sidebar.Parent = Main
 
 local SidebarPad = Instance.new("UIPadding")
-SidebarPad.PaddingTop = UDim.new(0, 10)
-SidebarPad.PaddingLeft = UDim.new(0, 8)
-SidebarPad.PaddingRight = UDim.new(0, 8)
+SidebarPad.PaddingTop = UDim.new(0, 8)
+SidebarPad.PaddingLeft = UDim.new(0, 6)
+SidebarPad.PaddingRight = UDim.new(0, 6)
 SidebarPad.PaddingBottom = UDim.new(0, 8)
 SidebarPad.Parent = Sidebar
 
---============================================================
 -- SEARCH BAR
---============================================================
-
 local SearchContainer = Instance.new("Frame")
 SearchContainer.Name = "SearchContainer"
-SearchContainer.Size = UDim2.new(1, 0, 0, 30)
+SearchContainer.Size = UDim2.new(1, 0, 0, 26)
 SearchContainer.Position = UDim2.new(0, 0, 0, 0)
 SearchContainer.BackgroundColor3 = Colors.Slot
 SearchContainer.BorderSizePixel = 0
 SearchContainer.Parent = Sidebar
 
 local SearchCorner = Instance.new("UICorner")
-SearchCorner.CornerRadius = UDim.new(0, 6)
+SearchCorner.CornerRadius = UDim.new(0, 5)
 SearchCorner.Parent = SearchContainer
 
 local SearchStroke = Instance.new("UIStroke")
@@ -608,14 +396,10 @@ SearchStroke.Color = DefaultBorder
 SearchStroke.Thickness = 1
 SearchStroke.Parent = SearchContainer
 
-registerBorder(MainStroke)
-registerBorder(MinimizeStroke)
-registerBorder(SearchStroke)
-
 local SearchIcon = Instance.new("ImageLabel")
 SearchIcon.Name = "SearchIcon"
-SearchIcon.Size = UDim2.new(0, 13, 0, 13)
-SearchIcon.Position = UDim2.new(0, 7, 0.5, -6)
+SearchIcon.Size = UDim2.new(0, 12, 0, 12)
+SearchIcon.Position = UDim2.new(0, 6, 0.5, -6)
 SearchIcon.BackgroundTransparency = 1
 SearchIcon.Image = "rbxassetid://91301384227473"
 SearchIcon.ImageColor3 = Colors.SubText
@@ -624,8 +408,8 @@ SearchIcon.Parent = SearchContainer
 
 local SearchBox = Instance.new("TextBox")
 SearchBox.Name = "SearchBox"
-SearchBox.Size = UDim2.new(1, -30, 1, 0)
-SearchBox.Position = UDim2.new(0, 27, 0, 0)
+SearchBox.Size = UDim2.new(1, -24, 1, 0)
+SearchBox.Position = UDim2.new(0, 22, 0, 0)
 SearchBox.BackgroundTransparency = 1
 SearchBox.Text = ""
 SearchBox.PlaceholderText = "Search..."
@@ -637,49 +421,36 @@ SearchBox.TextXAlignment = Enum.TextXAlignment.Left
 SearchBox.ClearTextOnFocus = false
 SearchBox.Parent = SearchContainer
 
---============================================================
--- SIDEBAR BUTTON CONTAINER
---============================================================
-
-local SidebarButtonContainer = Instance.new("ScrollingFrame")
+-- BUTTON CONTAINER
+local SidebarButtonContainer = Instance.new("Frame")
 SidebarButtonContainer.Name = "ButtonContainer"
 SidebarButtonContainer.Size = UDim2.new(1, 0, 1, -86)
-SidebarButtonContainer.Position = UDim2.new(0, 0, 0, 38)
+SidebarButtonContainer.Position = UDim2.new(0, 0, 0, 34)
 SidebarButtonContainer.BackgroundTransparency = 1
-SidebarButtonContainer.BorderSizePixel = 0
-SidebarButtonContainer.ScrollBarThickness = 2
-SidebarButtonContainer.ScrollBarImageColor3 = Colors.Stroke
-SidebarButtonContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-SidebarButtonContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-SidebarButtonContainer.ScrollingDirection = Enum.ScrollingDirection.Y
 SidebarButtonContainer.ClipsDescendants = true
 SidebarButtonContainer.Parent = Sidebar
 
 local SidebarList = Instance.new("UIListLayout")
 SidebarList.SortOrder = Enum.SortOrder.LayoutOrder
-SidebarList.Padding = UDim.new(0, 4)
+SidebarList.Padding = UDim.new(0, 2)
 SidebarList.Parent = SidebarButtonContainer
 
 local SidebarDivider = Instance.new("Frame")
 SidebarDivider.Name = "SidebarDivider"
-SidebarDivider.Size = UDim2.new(0, 1, 1, -41)
-SidebarDivider.Position = UDim2.new(0, 140, 0, 41)
+SidebarDivider.Size = UDim2.new(0, 1, 1, -33)
+SidebarDivider.Position = UDim2.new(0, 120, 0, 33)
 SidebarDivider.BackgroundColor3 = DefaultBorder
 SidebarDivider.BorderSizePixel = 0
 SidebarDivider.Parent = Main
 
---============================================================
--- CONTENT FRAME
--- Perbaikan utama: area konten dibatasi oleh Main
---============================================================
-
+-- ===== CONTENT (FIX CLIPS) =====
 local Content = Instance.new("Frame")
 Content.Name = "Content"
-Content.Size = UDim2.new(1, -141, 1, -41)
-Content.Position = UDim2.new(0, 141, 0, 41)
+Content.Size = UDim2.new(1, -121, 1, -33)
+Content.Position = UDim2.new(0, 121, 0, 33)
 Content.BackgroundColor3 = Colors.Panel
 Content.BorderSizePixel = 0
-Content.ClipsDescendants = true
+Content.ClipsDescendants = true -- FIX
 Content.Parent = Main
 
 local Scroll = Instance.new("ScrollingFrame")
@@ -690,18 +461,13 @@ Scroll.BackgroundTransparency = 1
 Scroll.BorderSizePixel = 0
 Scroll.ScrollBarThickness = 4
 Scroll.ScrollBarImageColor3 = Colors.Stroke
-Scroll.CanvasPosition = Vector2.zero
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll.ScrollingDirection = Enum.ScrollingDirection.Y
 Scroll.ClipsDescendants = true
 Scroll.Parent = Content
 
 local ScrollPad = Instance.new("UIPadding")
-ScrollPad.PaddingLeft = UDim.new(0, 2)
 ScrollPad.PaddingRight = UDim.new(0, 6)
-ScrollPad.PaddingTop = UDim.new(0, 2)
-ScrollPad.PaddingBottom = UDim.new(0, 4)
 ScrollPad.Parent = Scroll
 
 local ScrollList = Instance.new("UIListLayout")
@@ -709,152 +475,162 @@ ScrollList.SortOrder = Enum.SortOrder.LayoutOrder
 ScrollList.Padding = UDim.new(0, 8)
 ScrollList.Parent = Scroll
 
---============================================================
--- SIDEBAR BUTTON SYSTEM
---============================================================
+registerBorder(MainStroke)
+registerBorder(MinimizeStroke)
+registerBorder(SearchStroke)
 
 local sidebarButtons = {}
 local activeTab = nil
 
 local function createSidebarButton(text, order, onClick)
-    local btn = Instance.new("TextButton")
-    btn.Name = text
-    btn.Size = UDim2.new(1, -2, 0, 30)
-    btn.BackgroundColor3 = Colors.Sidebar
-    btn.BackgroundTransparency = 1
-    btn.BorderSizePixel = 0
-    btn.Text = ""
-    btn.AutoButtonColor = false
-    btn.LayoutOrder = order
-    btn.Parent = SidebarButtonContainer
+	local btn = Instance.new("TextButton")
+	btn.Name = text
+	btn.Size = UDim2.new(1, 0, 0, 26)
+	btn.BackgroundColor3 = Colors.Sidebar
+	btn.BackgroundTransparency = 1
+	btn.BorderSizePixel = 0
+	btn.Text = ""
+	btn.AutoButtonColor = false
+	btn.LayoutOrder = order
+	btn.Parent = SidebarButtonContainer
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 5)
+	btnCorner.Parent = btn
 
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Size = UDim2.new(1, -16, 1, 0)
-    label.Position = UDim2.new(0, 8, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Colors.SubText
-    label.Font = Enum.Font.GothamMedium
-    label.TextSize = 11
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = btn
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Name = "Label"
+	textLabel.Size = UDim2.new(1, -16, 1, 0)
+	textLabel.Position = UDim2.new(0, 8, 0, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = text
+	textLabel.TextColor3 = Colors.SubText
+	textLabel.Font = Enum.Font.GothamMedium
+	textLabel.TextSize = 11
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.Parent = btn
 
-    btn.MouseEnter:Connect(function()
-        if activeTab ~= btn then
-            TweenService:Create(btn, TweenInfo.new(0.15), {
-                BackgroundTransparency = 0.5,
-                BackgroundColor3 = Colors.SlotHover
-            }):Play()
+	btn.MouseEnter:Connect(function()
+		if activeTab ~= btn then
+			TweenService:Create(btn, TweenInfo.new(0.15), {
+				BackgroundTransparency = 0.7,
+				BackgroundColor3 = Colors.SlotHover
+			}):Play()
+			TweenService:Create(textLabel, TweenInfo.new(0.15), {
+				TextColor3 = Colors.Text
+			}):Play()
+		end
+	end)
 
-            TweenService:Create(label, TweenInfo.new(0.15), {
-                TextColor3 = Colors.Text
-            }):Play()
-        end
-    end)
+	btn.MouseLeave:Connect(function()
+		if activeTab ~= btn then
+			TweenService:Create(btn, TweenInfo.new(0.15), {
+				BackgroundTransparency = 1
+			}):Play()
+			TweenService:Create(textLabel, TweenInfo.new(0.15), {
+				TextColor3 = Colors.SubText
+			}):Play()
+		end
+	end)
 
-    btn.MouseLeave:Connect(function()
-        if activeTab ~= btn then
-            TweenService:Create(btn, TweenInfo.new(0.15), {
-                BackgroundTransparency = 1
-            }):Play()
+	btn.MouseButton1Click:Connect(function()
+		for _, b in pairs(sidebarButtons) do
+			TweenService:Create(b, TweenInfo.new(0.15), {
+				BackgroundTransparency = 1
+			}):Play()
+			local lbl = b:FindFirstChild("Label")
+			if lbl then
+				TweenService:Create(lbl, TweenInfo.new(0.15), {
+					TextColor3 = Colors.SubText
+				}):Play()
+			end
+		end
+		activeTab = btn
+		TweenService:Create(btn, TweenInfo.new(0.15), {
+			BackgroundTransparency = 0.5,
+			BackgroundColor3 = Colors.SlotHover
+		}):Play()
+		TweenService:Create(textLabel, TweenInfo.new(0.15), {
+			TextColor3 = Colors.Text
+		}):Play()
 
-            TweenService:Create(label, TweenInfo.new(0.15), {
-                TextColor3 = Colors.SubText
-            }):Play()
-        end
-    end)
+		if onClick then onClick() end
+	end)
 
-    btn.MouseButton1Click:Connect(function()
-        for _, other in ipairs(sidebarButtons) do
-            other.BackgroundTransparency = 1
-
-            local otherLabel = other:FindFirstChild("Label")
-            if otherLabel then
-                otherLabel.TextColor3 = Colors.SubText
-            end
-        end
-
-        activeTab = btn
-        btn.BackgroundTransparency = 0.5
-        btn.BackgroundColor3 = Colors.SlotHover
-        label.TextColor3 = Colors.Text
-
-        if onClick then
-            onClick()
-        end
-    end)
-
-    table.insert(sidebarButtons, btn)
-    return btn
+	table.insert(sidebarButtons, btn)
+	return btn
 end
-
---============================================================
--- CONTENT CLEAR
---============================================================
 
 local function clearContent()
-    for _, child in ipairs(Scroll:GetChildren()) do
-        if not child:IsA("UIListLayout")
-            and not child:IsA("UIPadding") then
-            child:Destroy()
-        end
-    end
-
-    for _, child in ipairs(PopupLayer:GetChildren()) do
-        if child.Name:find("Popup_") then
-            child.Visible = false
-        end
-    end
+	for _, child in pairs(Scroll:GetChildren()) do
+		if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+			child:Destroy()
+		end
+	end
+	for _, child in pairs(PopupLayer:GetChildren()) do
+		child.Visible = false
+	end
 end
 
---============================================================
--- SEARCH FILTER
---============================================================
-
 SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local query = SearchBox.Text:lower()
+	local query = SearchBox.Text:lower()
 
-    for _, btn in ipairs(SidebarButtonContainer:GetChildren()) do
-        if btn:IsA("TextButton") then
-            local label = btn:FindFirstChild("Label")
+	for _, btn in pairs(SidebarButtonContainer:GetChildren()) do
+		if btn:IsA("TextButton") then
+			local label = btn:FindFirstChild("Label")
+			if label then
+				if query == "" then
+					btn.Visible = true
+				else
+					btn.Visible = label.Text:lower():find(query) ~= nil
+				end
+			end
+		end
+	end
 
-            if label then
-                btn.Visible = query == ""
-                    or label.Text:lower():find(query, 1, true) ~= nil
-            end
-        end
-    end
+	for _, child in pairs(Scroll:GetChildren()) do
+		if child:IsA("Frame") or child:IsA("TextLabel") then
+			local found = false
+			for _, desc in pairs(child:GetDescendants()) do
+				if desc:IsA("TextLabel") and desc.Text:lower():find(query) then
+					found = true
+					break
+				end
+			end
+			if query == "" then
+				child.Visible = true
+			else
+				child.Visible = found
+			end
+		end
+	end
 end)
 
---============================================================
--- PART 2 SELESAI
--- PART 3 dimulai dari Discord Pill dan fungsi tema.
---============================================================
+SearchBox.FocusLost:Connect(function(enterPressed)
+	if not enterPressed then return end
+	local query = SearchBox.Text:lower()
+	if query == "" then return end
 
---============================================================
--- ZORX HUB - PART 3/5
--- DISCORD, THEME SYSTEM, RAINBOW
---============================================================
+	for _, btn in pairs(SidebarButtonContainer:GetChildren()) do
+		if btn:IsA("TextButton") then
+			local label = btn:FindFirstChild("Label")
+			if label and label.Text:lower():find(query) then
+				btn.MouseButton1Click:Fire()
+				break
+			end
+		end
+	end
+end)
 
---============================================================
--- DISCORD CARD SIDEBAR
---============================================================
-
+-- ===== DISCORD PILL (FIX UKURAN) =====
 local DiscordPill = Instance.new("TextButton")
 DiscordPill.Name = "DiscordPill"
-DiscordPill.Size = UDim2.new(1, -12, 0, 30)
-DiscordPill.AnchorPoint = Vector2.new(0.5, 1)
-DiscordPill.Position = UDim2.new(0.5, 0, 1, -6)
+DiscordPill.Size = UDim2.new(1, -4, 0, 34)
+DiscordPill.Position = UDim2.new(0, 2, 1, -38)
 DiscordPill.BackgroundColor3 = DefaultPillBg
 DiscordPill.BorderSizePixel = 0
 DiscordPill.Text = ""
 DiscordPill.AutoButtonColor = false
-DiscordPill.ZIndex = 5
 DiscordPill.Parent = Sidebar
 
 local dpCorner = Instance.new("UICorner")
@@ -868,8 +644,8 @@ dpStroke.Parent = DiscordPill
 
 local DiscordIcon = Instance.new("ImageLabel")
 DiscordIcon.Name = "DiscordIcon"
-DiscordIcon.Size = UDim2.new(0, 14, 0, 14)
-DiscordIcon.Position = UDim2.new(0, 5, 0.5, -7)
+DiscordIcon.Size = UDim2.new(0, 16, 0, 16)
+DiscordIcon.Position = UDim2.new(0, 6, 0.5, -8)
 DiscordIcon.BackgroundTransparency = 1
 DiscordIcon.Image = "rbxassetid://98671378613860"
 DiscordIcon.ScaleType = Enum.ScaleType.Fit
@@ -877,24 +653,24 @@ DiscordIcon.Parent = DiscordPill
 
 local DiscordTitle = Instance.new("TextLabel")
 DiscordTitle.Name = "DiscordTitle"
-DiscordTitle.Size = UDim2.new(1, -25, 0, 11)
-DiscordTitle.Position = UDim2.new(0, 23, 0, 2)
+DiscordTitle.Size = UDim2.new(1, -28, 0, 12)
+DiscordTitle.Position = UDim2.new(0, 26, 0, 4)
 DiscordTitle.BackgroundTransparency = 1
 DiscordTitle.Text = "Discord"
 DiscordTitle.TextColor3 = DefaultPillText
 DiscordTitle.Font = Enum.Font.GothamBold
-DiscordTitle.TextSize = 9
+DiscordTitle.TextSize = 10
 DiscordTitle.TextXAlignment = Enum.TextXAlignment.Left
 DiscordTitle.TextTruncate = Enum.TextTruncate.AtEnd
 DiscordTitle.Parent = DiscordPill
 
 local DiscordLink = Instance.new("TextLabel")
 DiscordLink.Name = "DiscordLink"
-DiscordLink.Size = UDim2.new(1, -25, 0, 9)
-DiscordLink.Position = UDim2.new(0, 23, 0, 16)
+DiscordLink.Size = UDim2.new(1, -28, 0, 10)
+DiscordLink.Position = UDim2.new(0, 26, 0, 18)
 DiscordLink.BackgroundTransparency = 1
-DiscordLink.Text = "discord.gg/3MrpqYycs"
-DiscordLink.TextColor3 = Colors.SubText
+DiscordLink.Text = "discord.gg/cvWW5DBZKR"
+DiscordLink.TextColor3 = Color3.fromRGB(140, 140, 150)
 DiscordLink.Font = Enum.Font.Gotham
 DiscordLink.TextSize = 7
 DiscordLink.TextXAlignment = Enum.TextXAlignment.Left
@@ -906,943 +682,639 @@ table.insert(allPillStrokes, dpStroke)
 table.insert(allPillTexts, DiscordTitle)
 
 DiscordPill.MouseEnter:Connect(function()
-    if not RainbowActive then
-        TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
-            BackgroundColor3 = Colors.SlotHover
-        }):Play()
-    end
+	TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
+		BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+	}):Play()
 end)
-
 DiscordPill.MouseLeave:Connect(function()
-    if not RainbowActive then
-        local theme = ThemeColors[ActiveTheme]
-        if theme then
-            TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
-                BackgroundColor3 = theme.bg
-            }):Play()
-        end
-    end
+	if RainbowActive then return end
+	local theme = ThemeColors[ActiveTheme]
+	TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
+		BackgroundColor3 = theme.bg
+	}):Play()
 end)
 
-local DISCORD_URL = "https://discord.gg/3MrpqYycs"
-
-local function copyDiscordInvite()
-    local copied = false
-
-    pcall(function()
-        if setclipboard then
-            setclipboard(DISCORD_URL)
-            copied = true
-        elseif toclipboard then
-            toclipboard(DISCORD_URL)
-            copied = true
-        end
-    end)
-
-    DiscordTitle.Text = copied and "Invite Copied!" or "Discord Invite"
-    task.delay(2, function()
-        if DiscordTitle and DiscordTitle.Parent then
-            DiscordTitle.Text = "Discord"
-        end
-    end)
-end
-
-DiscordPill.MouseButton1Click:Connect(copyDiscordInvite)
+DiscordPill.MouseButton1Click:Connect(function()
+	pcall(function()
+		if setclipboard then
+			setclipboard("https://discord.gg/3MrpqYycs")
+		elseif toclipboard then
+			toclipboard("https://discord.gg/3MrpqYycs")
+		end
+	end)
+end)
 
 --============================================================
--- APPLY THEME
+-- FUNGSI GANTI TEMA
 --============================================================
-
 local function applyPillTheme(themeName)
-    local theme = ThemeColors[themeName]
-    if not theme then
-        return
-    end
+	ActiveTheme = themeName
 
-    ActiveTheme = themeName
-    RainbowActive = themeName == "Rainbow"
+	if themeName == "Rainbow" then
+		RainbowActive = true
+		return
+	else
+		RainbowActive = false
+	end
 
-    if RainbowActive then
-        return
-    end
+	local theme = ThemeColors[themeName]
+	if not theme then return end
 
-    local tweenInfo = TweenInfo.new(0.2)
+	for _, pill in pairs(allPills) do
+		TweenService:Create(pill, TweenInfo.new(0.2), {
+			BackgroundColor3 = theme.bg
+		}):Play()
+	end
+	for _, stroke in pairs(allPillStrokes) do
+		TweenService:Create(stroke, TweenInfo.new(0.2), {
+			Color = theme.stroke
+		}):Play()
+	end
+	for _, txt in pairs(allPillTexts) do
+		TweenService:Create(txt, TweenInfo.new(0.2), {
+			TextColor3 = theme.text
+		}):Play()
+	end
+	TweenService:Create(DiscordLink, TweenInfo.new(0.2), {
+		TextColor3 = theme.text
+	}):Play()
 
-    for _, pill in ipairs(allPills) do
-        if pill and pill.Parent then
-            TweenService:Create(pill, tweenInfo, {
-                BackgroundColor3 = theme.bg
-            }):Play()
-        end
-    end
+	for _, border in pairs(allBorders) do
+		if border and border.Parent then
+			TweenService:Create(border, TweenInfo.new(0.2), {
+				Color = theme.border
+			}):Play()
+		end
+	end
+	TweenService:Create(TopDivider, TweenInfo.new(0.2), {
+		BackgroundColor3 = theme.border
+	}):Play()
+	TweenService:Create(SidebarDivider, TweenInfo.new(0.2), {
+		BackgroundColor3 = theme.border
+	}):Play()
 
-    for _, stroke in ipairs(allPillStrokes) do
-        if stroke and stroke.Parent then
-            TweenService:Create(stroke, tweenInfo, {
-                Color = theme.stroke
-            }):Play()
-        end
-    end
-
-    for _, txt in ipairs(allPillTexts) do
-        if txt and txt.Parent then
-            TweenService:Create(txt, tweenInfo, {
-                TextColor3 = theme.text
-            }):Play()
-        end
-    end
-
-    if DiscordLink and DiscordLink.Parent then
-        DiscordLink.TextColor3 = theme.text
-    end
-
-    for _, border in ipairs(allBorders) do
-        if border and border.Parent then
-            TweenService:Create(border, tweenInfo, {
-                Color = theme.border
-            }):Play()
-        end
-    end
-
-    TopDivider.BackgroundColor3 = theme.border
-    SidebarDivider.BackgroundColor3 = theme.border
-
-    for _, border in ipairs(infoLogoBorders) do
-        if border and border.Parent then
-            border.Color = theme.infoLogo or theme.border
-        end
-    end
+	for _, border in pairs(infoLogoBorders) do
+		if border and border.Parent then
+			TweenService:Create(border, TweenInfo.new(0.2), {
+				Color = theme.infoLogo or theme.border
+			}):Play()
+		end
+	end
 end
 
---============================================================
--- RAINBOW LOOP
---============================================================
-
+-- ===== RAINBOW LOOP =====
 RunService.Heartbeat:Connect(function()
-    if not RainbowActive then
-        return
-    end
+	if not RainbowActive then return end
 
-    RainbowHue = (RainbowHue + 0.005) % 1
+	RainbowHue = (RainbowHue + 0.005) % 1
+	local rainbowColor = Color3.fromHSV(RainbowHue, 0.8, 1)
+	local rainbowDark = Color3.fromHSV(RainbowHue, 0.8, 0.4)
+	local rainbowText = Color3.fromHSV(RainbowHue, 0.3, 1)
 
-    local rainbowColor = Color3.fromHSV(RainbowHue, 0.8, 1)
-    local rainbowDark = Color3.fromHSV(RainbowHue, 0.8, 0.4)
-    local rainbowText = Color3.fromHSV(RainbowHue, 0.3, 1)
+	for _, pill in pairs(allPills) do
+		pill.BackgroundColor3 = rainbowDark
+	end
+	for _, stroke in pairs(allPillStrokes) do
+		stroke.Color = rainbowColor
+	end
+	for _, txt in pairs(allPillTexts) do
+		txt.TextColor3 = rainbowText
+	end
+	DiscordLink.TextColor3 = rainbowText
 
-    for _, pill in ipairs(allPills) do
-        if pill and pill.Parent then
-            pill.BackgroundColor3 = rainbowDark
-        end
-    end
-
-    for _, stroke in ipairs(allPillStrokes) do
-        if stroke and stroke.Parent then
-            stroke.Color = rainbowColor
-        end
-    end
-
-    for _, txt in ipairs(allPillTexts) do
-        if txt and txt.Parent then
-            txt.TextColor3 = rainbowText
-        end
-    end
-
-    if DiscordLink and DiscordLink.Parent then
-        DiscordLink.TextColor3 = rainbowText
-    end
-
-    for _, border in ipairs(allBorders) do
-        if border and border.Parent then
-            border.Color = rainbowColor
-        end
-    end
-
-    for _, border in ipairs(infoLogoBorders) do
-        if border and border.Parent then
-            border.Color = rainbowColor
-        end
-    end
-
-    TopDivider.BackgroundColor3 = rainbowColor
-    SidebarDivider.BackgroundColor3 = rainbowColor
-
-    -- Rainbow untuk SEMUA garis tepi, termasuk elemen yang dibuat belakangan.
-    -- UIStroke di Main dan PopupLayer tidak harus terdaftar di allBorders.
-    for _, root in ipairs({Main, PopupLayer}) do
-        if root and root.Parent then
-            for _, obj in ipairs(root:GetDescendants()) do
-                if obj:IsA("UIStroke") then
-                    obj.Color = rainbowColor
-                elseif obj:IsA("Frame") and (
-                    obj.Name == "TopDivider"
-                    or obj.Name == "SidebarDivider"
-                ) then
-                    obj.BackgroundColor3 = rainbowColor
-                end
-            end
-        end
-    end
-
-    -- Garis utama tetap ikut Rainbow.
-    if MainStroke and MainStroke.Parent then
-        MainStroke.Color = rainbowColor
-    end
+	for _, border in pairs(allBorders) do
+		if border and border.Parent then
+			border.Color = rainbowColor
+		end
+	end
+	for _, border in pairs(infoLogoBorders) do
+		if border and border.Parent then
+			border.Color = rainbowColor
+		end
+	end
+	TopDivider.BackgroundColor3 = rainbowColor
+	SidebarDivider.BackgroundColor3 = rainbowColor
 end)
-
---============================================================
--- HELPER CARD
---============================================================
-
-local function createCard(name, height, order)
-    local card = Instance.new("Frame")
-    card.Name = name
-    card.Size = UDim2.new(1, 0, 0, height)
-    card.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-    card.BorderSizePixel = 0
-    card.LayoutOrder = order or 1
-    card.ClipsDescendants = true
-    card.Parent = Scroll
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = card
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = ThemeColors[ActiveTheme].border
-    stroke.Thickness = 1
-    stroke.Parent = card
-    registerBorder(stroke)
-
-    return card
-end
-
-local function createLabel(parent, name, text, position, size, textSize, color)
-    local label = Instance.new("TextLabel")
-    label.Name = name
-    label.Position = position
-    label.Size = size
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = color or Colors.Text
-    label.Font = Enum.Font.Gotham
-    label.TextSize = textSize or 11
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextYAlignment = Enum.TextYAlignment.Center
-    label.TextWrapped = true
-    label.Parent = parent
-
-    return label
-end
-
---============================================================
--- PART 3 SELESAI
--- PART 4: HOME, INFO, SETTINGS DAN DROPDOWN
---============================================================
-
---============================================================
--- ZORX HUB - PART 4/5
--- HOME, INFO, SETTINGS, COLOR DROPDOWN
---============================================================
 
 --============================================================
 -- HOME PANEL
 --============================================================
-
 local function loadHomePanel()
-    clearContent()
+	clearContent()
 
-    local welcomeCard = createCard("WelcomeCard", 108, 1)
+	local welcomeCard = Instance.new("Frame")
+	welcomeCard.Size = UDim2.new(1, 0, 0, 85)
+	welcomeCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	welcomeCard.BorderSizePixel = 0
+	welcomeCard.LayoutOrder = 1
+	welcomeCard.Parent = Scroll
 
-    createLabel(
-        welcomeCard,
-        "WelcomeTitle",
-        "Welcome to Zorx",
-        UDim2.new(0, 14, 0, 10),
-        UDim2.new(1, -28, 0, 22),
-        14,
-        Colors.Text
-    ).Font = Enum.Font.GothamBold
+	local wCorner = Instance.new("UICorner")
+	wCorner.CornerRadius = UDim.new(0, 8)
+	wCorner.Parent = welcomeCard
 
-    local desc = createLabel(
-        welcomeCard,
-        "WelcomeDescription",
-        "Welcome! This hub is designed to keep every feature organized, responsive, and easy to use. Select a tab from the sidebar to get started.",
-        UDim2.new(0, 14, 0, 36),
-        UDim2.new(1, -28, 0, 60),
-        10,
-        Color3.fromRGB(170, 170, 190)
-    )
+	local wStroke = Instance.new("UIStroke")
+	wStroke.Color = ThemeColors[ActiveTheme].border
+	wStroke.Thickness = 1
+	wStroke.Parent = welcomeCard
+	registerBorder(wStroke)
 
-    desc.TextYAlignment = Enum.TextYAlignment.Top
+	local wTitle = Instance.new("TextLabel")
+	wTitle.Size = UDim2.new(1, -30, 0, 22)
+	wTitle.Position = UDim2.new(0, 14, 0, 10)
+	wTitle.BackgroundTransparency = 1
+	wTitle.Text = "Welcome to Zorx"
+	wTitle.TextColor3 = Colors.Text
+	wTitle.Font = Enum.Font.GothamBold
+	wTitle.TextSize = 14
+	wTitle.TextXAlignment = Enum.TextXAlignment.Left
+	wTitle.Parent = welcomeCard
 
-    local imageCard = createCard("ImageCard", 180, 2)
+	local wDesc = Instance.new("TextLabel")
+	wDesc.Size = UDim2.new(1, -28, 0, 45)
+	wDesc.Position = UDim2.new(0, 14, 0, 35)
+	wDesc.BackgroundTransparency = 1
+	wDesc.Text = "Welcome! This hub is designed to keep every feature organized, responsive, and easy to use. Select a tab from the sidebar to get started."
+	wDesc.TextColor3 = Color3.fromRGB(170, 170, 190)
+	wDesc.Font = Enum.Font.Gotham
+	wDesc.TextSize = 10
+	wDesc.TextXAlignment = Enum.TextXAlignment.Left
+	wDesc.TextYAlignment = Enum.TextYAlignment.Top
+	wDesc.TextWrapped = true
+	wDesc.Parent = welcomeCard
 
-    local image = Instance.new("ImageLabel")
-    image.Name = "HomeImage"
-    image.Size = UDim2.new(1, -12, 1, -12)
-    image.Position = UDim2.new(0, 6, 0, 6)
-    image.BackgroundTransparency = 1
-    image.BorderSizePixel = 0
-    image.Image = "rbxassetid://138859759137296"
-    image.ScaleType = Enum.ScaleType.Crop
-    image.Parent = imageCard
+	local imageCard = Instance.new("Frame")
+	imageCard.Size = UDim2.new(1, 0, 0, 170)
+	imageCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	imageCard.BorderSizePixel = 0
+	imageCard.ClipsDescendants = true
+	imageCard.LayoutOrder = 2
+	imageCard.Parent = Scroll
 
-    local imageCorner = Instance.new("UICorner")
-    imageCorner.CornerRadius = UDim.new(0, 6)
-    imageCorner.Parent = image
+	local iCorner = Instance.new("UICorner")
+	iCorner.CornerRadius = UDim.new(0, 8)
+	iCorner.Parent = imageCard
 
-    local infoCard = createCard("HomeInfoCard", 72, 3)
+	local imgContainer = Instance.new("Frame")
+	imgContainer.Size = UDim2.new(1, -4, 1, -4)
+	imgContainer.Position = UDim2.new(0, 2, 0, 2)
+	imgContainer.BackgroundTransparency = 1
+	imgContainer.BorderSizePixel = 0
+	imgContainer.ClipsDescendants = true
+	imgContainer.Parent = imageCard
 
-    createLabel(
-        infoCard,
-        "HomeInfoTitle",
-        "ZORX HUB",
-        UDim2.new(0, 14, 0, 10),
-        UDim2.new(1, -28, 0, 18),
-        12,
-        Colors.Text
-    ).Font = Enum.Font.GothamBold
+	local icCorner = Instance.new("UICorner")
+	icCorner.CornerRadius = UDim.new(0, 6)
+	icCorner.Parent = imgContainer
 
-    createLabel(
-        infoCard,
-        "HomeInfoDescription",
-        "Pilih menu di sebelah kiri untuk melihat fitur yang tersedia.",
-        UDim2.new(0, 14, 0, 32),
-        UDim2.new(1, -28, 0, 30),
-        10,
-        Colors.SubText
-    )
+	local img = Instance.new("ImageLabel")
+	img.Size = UDim2.new(1, 0, 1, 0)
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Image = "rbxassetid://138859759137296"
+	img.ScaleType = Enum.ScaleType.Crop
+	img.Parent = imgContainer
+
+	local iStroke = Instance.new("UIStroke")
+	iStroke.Color = ThemeColors[ActiveTheme].border
+	iStroke.Thickness = 0.5
+	iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	iStroke.Parent = imageCard
+	registerBorder(iStroke)
 end
 
 --============================================================
 -- INFO PANEL
 --============================================================
-
 local function loadInfoPanel()
-    clearContent()
+	clearContent()
+	local communityCard = Instance.new("Frame")
+	communityCard.Size = UDim2.new(1, 0, 0, 145)
+	communityCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+	communityCard.BorderSizePixel = 0
+	communityCard.LayoutOrder = 1
+	communityCard.Parent = Scroll
 
-    local communityCard = createCard("CommunityCard", 178, 1)
+	local cCorner = Instance.new("UICorner")
+	cCorner.CornerRadius = UDim.new(0, 8)
+	cCorner.Parent = communityCard
 
-    local logoBox = Instance.new("Frame")
-    logoBox.Name = "CommunityLogoBox"
-    logoBox.Size = UDim2.new(0, 46, 0, 46)
-    logoBox.Position = UDim2.new(0, 14, 0, 14)
-    logoBox.BackgroundColor3 = Color3.fromRGB(42, 42, 55)
-    logoBox.BorderSizePixel = 0
-    logoBox.ClipsDescendants = true
-    logoBox.Parent = communityCard
+	local cStroke = Instance.new("UIStroke")
+	cStroke.Color = ThemeColors[ActiveTheme].border
+	cStroke.Thickness = 1
+	cStroke.Parent = communityCard
+	registerBorder(cStroke)
 
-    local logoCorner = Instance.new("UICorner")
-    logoCorner.CornerRadius = UDim.new(0, 8)
-    logoCorner.Parent = logoBox
+	local logoBox = Instance.new("Frame")
+	logoBox.Size = UDim2.new(0, 46, 0, 46)
+	logoBox.Position = UDim2.new(0, 14, 0, 14)
+	logoBox.BackgroundColor3 = Color3.fromRGB(42, 42, 55)
+	logoBox.BorderSizePixel = 0
+	logoBox.ClipsDescendants = true
+	logoBox.Parent = communityCard
 
-    local logoStroke = Instance.new("UIStroke")
-    logoStroke.Color = ThemeColors[ActiveTheme].infoLogo
-    logoStroke.Thickness = 1
-    logoStroke.Parent = logoBox
-    registerInfoLogoBorder(logoStroke)
+	local logoCorner = Instance.new("UICorner")
+	logoCorner.CornerRadius = UDim.new(0, 8)
+	logoCorner.Parent = logoBox
 
-    local logoImage = Instance.new("ImageLabel")
-    logoImage.Name = "CommunityLogo"
-    logoImage.Size = UDim2.new(1, -6, 1, -6)
-    logoImage.Position = UDim2.new(0.5, 0, 0.5, 0)
-    logoImage.AnchorPoint = Vector2.new(0.5, 0.5)
-    logoImage.BackgroundTransparency = 1
-    logoImage.Image = "rbxassetid://77776661633653"
-    logoImage.ScaleType = Enum.ScaleType.Fit
-    logoImage.Parent = logoBox
+	local logoStroke = Instance.new("UIStroke")
+	logoStroke.Color = ThemeColors[ActiveTheme].infoLogo or ThemeColors[ActiveTheme].border
+	logoStroke.Thickness = 1
+	logoStroke.Parent = logoBox
+	registerInfoLogoBorder(logoStroke)
 
-    createLabel(
-        communityCard,
-        "CommunityTitle",
-        "Zorx Community",
-        UDim2.new(0, 72, 0, 13),
-        UDim2.new(1, -86, 0, 20),
-        12,
-        Colors.Text
-    ).Font = Enum.Font.GothamBold
+	local logoImg2 = Instance.new("ImageLabel")
+	logoImg2.Size = UDim2.new(1, -6, 1, -6)
+	logoImg2.Position = UDim2.new(0.5, 0, 0.5, 0)
+	logoImg2.AnchorPoint = Vector2.new(0.5, 0.5)
+	logoImg2.BackgroundTransparency = 1
+	logoImg2.Image = "rbxassetid://77776661633653"
+	logoImg2.ScaleType = Enum.ScaleType.Fit
+	logoImg2.Parent = logoBox
 
-    local versionInfo = createLabel(
-        communityCard,
-        "VersionInfo",
-        "- Version: v5.0\n- Last Update: " .. getTodayDate(),
-        UDim2.new(0, 72, 0, 35),
-        UDim2.new(1, -86, 0, 42),
-        10,
-        Color3.fromRGB(170, 170, 190)
-    )
+	local cTitle = Instance.new("TextLabel")
+	cTitle.Size = UDim2.new(1, -80, 0, 18)
+	cTitle.Position = UDim2.new(0, 72, 0, 14)
+	cTitle.BackgroundTransparency = 1
+	cTitle.Text = "Zorx Community"
+	cTitle.TextColor3 = Colors.Text
+	cTitle.Font = Enum.Font.GothamBold
+	cTitle.TextSize = 12
+	cTitle.TextXAlignment = Enum.TextXAlignment.Left
+	cTitle.Parent = communityCard
 
-    versionInfo.TextYAlignment = Enum.TextYAlignment.Top
+	local cInfo = Instance.new("TextLabel")
+	cInfo.Size = UDim2.new(1, -80, 0, 30)
+	cInfo.Position = UDim2.new(0, 72, 0, 34)
+	cInfo.BackgroundTransparency = 1
+	cInfo.Text = "- Version: v5.0\n- Last Update: " .. getTodayDate()
+	cInfo.TextColor3 = Color3.fromRGB(170, 170, 190)
+	cInfo.Font = Enum.Font.Gotham
+	cInfo.TextSize = 10
+	cInfo.TextXAlignment = Enum.TextXAlignment.Left
+	cInfo.TextYAlignment = Enum.TextYAlignment.Top
+	cInfo.Parent = communityCard
 
-    local function createInfoButton(name, text, position, callback)
-        local button = Instance.new("TextButton")
-        button.Name = name
-        button.Size = UDim2.new(0.5, -21, 0, 34)
-        button.Position = position
-        button.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
-        button.BorderSizePixel = 0
-        button.Text = text
-        button.TextColor3 = Colors.Text
-        button.Font = Enum.Font.GothamBold
-        button.TextSize = 10
-        button.TextTruncate = Enum.TextTruncate.AtEnd
-        button.AutoButtonColor = true
-        button.Parent = communityCard
+	local copyDiscordBtn = Instance.new("TextButton")
+	copyDiscordBtn.Size = UDim2.new(0.5, -18, 0, 32)
+	copyDiscordBtn.Position = UDim2.new(0, 14, 0, 100)
+	copyDiscordBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+	copyDiscordBtn.BorderSizePixel = 0
+	copyDiscordBtn.Text = ""
+	copyDiscordBtn.AutoButtonColor = false
+	copyDiscordBtn.Parent = communityCard
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 6)
-        corner.Parent = button
+	local cdCorner = Instance.new("UICorner")
+	cdCorner.CornerRadius = UDim.new(0, 6)
+	cdCorner.Parent = copyDiscordBtn
 
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = ThemeColors[ActiveTheme].border
-        stroke.Thickness = 1
-        stroke.Parent = button
-        registerBorder(stroke)
+	local cdStroke = Instance.new("UIStroke")
+	cdStroke.Color = ThemeColors[ActiveTheme].border
+	cdStroke.Thickness = 1
+	cdStroke.Parent = copyDiscordBtn
+	registerBorder(cdStroke)
 
-        button.MouseButton1Click:Connect(callback)
+	local cdText = Instance.new("TextLabel")
+	cdText.Size = UDim2.new(1, -40, 1, 0)
+	cdText.Position = UDim2.new(0, 12, 0, 0)
+	cdText.BackgroundTransparency = 1
+	cdText.Text = "Copy Discord Invite"
+	cdText.TextColor3 = Color3.fromRGB(230, 240, 235)
+	cdText.Font = Enum.Font.GothamBold
+	cdText.TextSize = 11
+	cdText.TextXAlignment = Enum.TextXAlignment.Left
+	cdText.Parent = copyDiscordBtn
 
-        return button
-    end
+	local cdIcon = Instance.new("TextLabel")
+	cdIcon.Size = UDim2.new(0, 20, 1, 0)
+	cdIcon.Position = UDim2.new(1, -28, 0, 0)
+	cdIcon.BackgroundTransparency = 1
+	cdIcon.Text = "🔗"
+	cdIcon.TextSize = 16
+	cdIcon.Font = Enum.Font.GothamBold
+	cdIcon.TextColor3 = Color3.fromRGB(230, 240, 235)
+	cdIcon.TextXAlignment = Enum.TextXAlignment.Center
+	cdIcon.TextYAlignment = Enum.TextYAlignment.Center
+	cdIcon.Parent = copyDiscordBtn
 
-    createInfoButton(
-        "CopyDiscordButton",
-        "Copy Discord Invite",
-        UDim2.new(0, 14, 0, 116),
-        function()
-            copyDiscordInvite()
-        end
-    )
+	local updateBtn = Instance.new("TextButton")
+	updateBtn.Size = UDim2.new(0.5, -18, 0, 32)
+	updateBtn.Position = UDim2.new(0.5, 4, 0, 100)
+	updateBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 32)
+	updateBtn.BorderSizePixel = 0
+	updateBtn.Text = ""
+	updateBtn.AutoButtonColor = false
+	updateBtn.Parent = communityCard
 
-    createInfoButton(
-        "UpdateInfoButton",
-        "Refresh Info",
-        UDim2.new(0.5, 7, 0, 116),
-        function()
-            versionInfo.Text =
-                "- Version: v5.0\n- Last Update: " .. getTodayDate()
-        end
-    )
+	local udCorner = Instance.new("UICorner")
+	udCorner.CornerRadius = UDim.new(0, 6)
+	udCorner.Parent = updateBtn
 
-    local detailsCard = createCard("DetailsCard", 74, 2)
+	local udStroke = Instance.new("UIStroke")
+	udStroke.Color = ThemeColors[ActiveTheme].border
+	udStroke.Thickness = 1
+	udStroke.Parent = updateBtn
+	registerBorder(udStroke)
 
-    createLabel(
-        detailsCard,
-        "DetailsTitle",
-        "About",
-        UDim2.new(0, 14, 0, 9),
-        UDim2.new(1, -28, 0, 18),
-        11,
-        Colors.Text
-    ).Font = Enum.Font.GothamBold
+	local udText = Instance.new("TextLabel")
+	udText.Size = UDim2.new(1, -40, 1, 0)
+	udText.Position = UDim2.new(0, 12, 0, 0)
+	udText.BackgroundTransparency = 1
+	udText.Text = "Update Info"
+	udText.TextColor3 = Color3.fromRGB(230, 240, 235)
+	udText.Font = Enum.Font.GothamBold
+	udText.TextSize = 11
+	udText.TextXAlignment = Enum.TextXAlignment.Left
+	udText.Parent = updateBtn
 
-    createLabel(
-        detailsCard,
-        "DetailsDescription",
-        "Zorx Hub interface information and community links.",
-        UDim2.new(0, 14, 0, 30),
-        UDim2.new(1, -28, 0, 32),
-        10,
-        Colors.SubText
-    )
+	local udIcon = Instance.new("ImageLabel")
+	udIcon.Size = UDim2.new(0, 18, 0, 18)
+	udIcon.Position = UDim2.new(1, -28, 0.5, -9)
+	udIcon.BackgroundTransparency = 1
+	udIcon.Image = "rbxassetid://3926305904"
+	udIcon.ImageColor3 = Color3.fromRGB(230, 240, 235)
+	udIcon.ImageRectOffset = Vector2.new(764, 84)
+	udIcon.ImageRectSize = Vector2.new(36, 36)
+	udIcon.Parent = updateBtn
+
+	copyDiscordBtn.MouseButton1Click:Connect(function()
+		pcall(function()
+			if setclipboard then
+				setclipboard("https://discord.gg/3MrpqYycs")
+			elseif toclipboard then
+				toclipboard("https://discord.gg/3MrpqYycs")
+			end
+		end)
+	end)
+
+	updateBtn.MouseButton1Click:Connect(function()
+		local rotateInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+		TweenService:Create(udIcon, rotateInfo, {Rotation = 360}):Play()
+		task.wait(0.8)
+		udIcon.Rotation = 0
+		cInfo.Text = "- Version: v5.0\n- Last Update: " .. getTodayDate()
+	end)
 end
 
 --============================================================
 -- SETTINGS PANEL
 --============================================================
-
 local function loadSettingsPanel()
-    clearContent()
+	clearContent()
 
-    createLabel(
-        Scroll,
-        "Header_Colours",
-        "APPEARANCE",
-        UDim2.new(0, 0, 0, 0),
-        UDim2.new(1, 0, 0, 20),
-        10,
-        Colors.SubText
-    ).Font = Enum.Font.GothamBold
+	local header = Instance.new("TextLabel")
+	header.Name = "Header_Colours"
+	header.Size = UDim2.new(1, 0, 0, 16)
+	header.BackgroundTransparency = 1
+	header.Text = "COLOURS"
+	header.TextColor3 = Colors.SubText
+	header.Font = Enum.Font.GothamBold
+	header.TextSize = 10
+	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.LayoutOrder = 1
+	header.Parent = Scroll
 
-    local dropdownRow = createCard("Dropdown_Colours", 58, 2)
+	local dropdownRow = Instance.new("Frame")
+	dropdownRow.Name = "Dropdown_Colours"
+	dropdownRow.Size = UDim2.new(1, 0, 0, 42)
+	dropdownRow.BackgroundColor3 = Colors.Slot
+	dropdownRow.BorderSizePixel = 0
+	dropdownRow.LayoutOrder = 2
+	dropdownRow.Parent = Scroll
 
-    createLabel(
-        dropdownRow,
-        "ThemeTitle",
-        "Warna UI",
-        UDim2.new(0, 12, 0, 8),
-        UDim2.new(1, -140, 0, 17),
-        11,
-        Colors.Text
-    ).Font = Enum.Font.GothamMedium
+	local drCorner = Instance.new("UICorner")
+	drCorner.CornerRadius = UDim.new(0, 6)
+	drCorner.Parent = dropdownRow
 
-    createLabel(
-        dropdownRow,
-        "ThemeDescription",
-        "Ganti warna pill dan border",
-        UDim2.new(0, 12, 0, 29),
-        UDim2.new(1, -140, 0, 16),
-        9,
-        Colors.SubText
-    )
+	local drStroke = Instance.new("UIStroke")
+	drStroke.Color = ThemeColors[ActiveTheme].border
+	drStroke.Thickness = 1
+	drStroke.Parent = dropdownRow
+	registerBorder(drStroke)
 
-    local dropBox = Instance.new("TextButton")
-    dropBox.Name = "DropBox"
-    dropBox.Size = UDim2.new(0, 112, 0, 30)
-    dropBox.AnchorPoint = Vector2.new(1, 0.5)
-    dropBox.Position = UDim2.new(1, -10, 0.5, 0)
-    dropBox.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-    dropBox.BorderSizePixel = 0
-    dropBox.Text = ActiveTheme
-    dropBox.TextColor3 = Colors.Text
-    dropBox.Font = Enum.Font.Gotham
-    dropBox.TextSize = 10
-    dropBox.TextTruncate = Enum.TextTruncate.AtEnd
-    dropBox.AutoButtonColor = true
-    dropBox.Parent = dropdownRow
+	local drTitle = Instance.new("TextLabel")
+	drTitle.Name = "Title"
+	drTitle.Size = UDim2.new(1, -130, 0, 16)
+	drTitle.Position = UDim2.new(0, 10, 0, 6)
+	drTitle.BackgroundTransparency = 1
+	drTitle.Text = "Warna UI"
+	drTitle.TextColor3 = Colors.Text
+	drTitle.Font = Enum.Font.GothamMedium
+	drTitle.TextSize = 11
+	drTitle.TextXAlignment = Enum.TextXAlignment.Left
+	drTitle.Parent = dropdownRow
 
-    local dropCorner = Instance.new("UICorner")
-    dropCorner.CornerRadius = UDim.new(0, 6)
-    dropCorner.Parent = dropBox
+	local drDesc = Instance.new("TextLabel")
+	drDesc.Name = "Desc"
+	drDesc.Size = UDim2.new(1, -130, 0, 12)
+	drDesc.Position = UDim2.new(0, 10, 0, 22)
+	drDesc.BackgroundTransparency = 1
+	drDesc.Text = "Ganti warna pill + border"
+	drDesc.TextColor3 = Colors.SubText
+	drDesc.Font = Enum.Font.Gotham
+	drDesc.TextSize = 9
+	drDesc.TextXAlignment = Enum.TextXAlignment.Left
+	drDesc.Parent = dropdownRow
 
-    local dropStroke = Instance.new("UIStroke")
-    dropStroke.Color = ThemeColors[ActiveTheme].border
-    dropStroke.Thickness = 1
-    dropStroke.Parent = dropBox
-    registerBorder(dropStroke)
+	local dropBox = Instance.new("TextButton")
+	dropBox.Name = "DropBox"
+	dropBox.Size = UDim2.new(0, 110, 0, 24)
+	dropBox.Position = UDim2.new(1, -120, 0.5, -12)
+	dropBox.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+	dropBox.BorderSizePixel = 0
+	dropBox.Text = ActiveTheme
+	dropBox.TextColor3 = Colors.Text
+	dropBox.Font = Enum.Font.Gotham
+	dropBox.TextSize = 10
+	dropBox.AutoButtonColor = false
+	dropBox.Parent = dropdownRow
 
-    -- Popup berada pada ScreenGui agar tidak terpotong Scroll.
-    local popup = Instance.new("Frame")
-    popup.Name = "Popup_Colours"
-    popup.Size = UDim2.new(0, 150, 0, 0)
-    popup.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-    popup.BorderSizePixel = 0
-    popup.Visible = false
-    popup.ZIndex = 100
-    popup.ClipsDescendants = true
-    popup.Parent = PopupLayer
+	local dbCorner = Instance.new("UICorner")
+	dbCorner.CornerRadius = UDim.new(0, 5)
+	dbCorner.Parent = dropBox
 
-    local popupCorner = Instance.new("UICorner")
-    popupCorner.CornerRadius = UDim.new(0, 6)
-    popupCorner.Parent = popup
+	local popup = Instance.new("Frame")
+	popup.Name = "Popup_Colours"
+	popup.Size = UDim2.new(0, 110, 0, 0)
+	popup.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+	popup.BorderSizePixel = 0
+	popup.Visible = false
+	popup.ZIndex = 100
+	popup.ClipsDescendants = true
+	popup.Parent = PopupLayer
 
-    local popupStroke = Instance.new("UIStroke")
-    popupStroke.Color = Colors.Stroke
-    popupStroke.Thickness = 1
-    popupStroke.Parent = popup
+	local popupCorner = Instance.new("UICorner")
+	popupCorner.CornerRadius = UDim.new(0, 5)
+	popupCorner.Parent = popup
 
-    local popupScroll = Instance.new("ScrollingFrame")
-    popupScroll.Name = "ThemeScroll"
-    popupScroll.Size = UDim2.new(1, 0, 1, 0)
-    popupScroll.BackgroundTransparency = 1
-    popupScroll.BorderSizePixel = 0
-    popupScroll.ScrollBarThickness = 3
-    popupScroll.ScrollBarImageColor3 = Colors.Stroke
-    popupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    popupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    popupScroll.ScrollingDirection = Enum.ScrollingDirection.Y
-    popupScroll.ZIndex = 101
-    popupScroll.Parent = popup
+	local popupStroke = Instance.new("UIStroke")
+	popupStroke.Color = Colors.Stroke
+	popupStroke.Thickness = 1
+	popupStroke.Parent = popup
 
-    local popupPad = Instance.new("UIPadding")
-    popupPad.PaddingTop = UDim.new(0, 5)
-    popupPad.PaddingBottom = UDim.new(0, 5)
-    popupPad.PaddingLeft = UDim.new(0, 5)
-    popupPad.PaddingRight = UDim.new(0, 5)
-    popupPad.Parent = popupScroll
+	local popupScroll = Instance.new("ScrollingFrame")
+	popupScroll.Size = UDim2.new(1, 0, 1, 0)
+	popupScroll.BackgroundTransparency = 1
+	popupScroll.BorderSizePixel = 0
+	popupScroll.ScrollBarThickness = 3
+	popupScroll.ScrollBarImageColor3 = Colors.Stroke
+	popupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	popupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	popupScroll.Parent = popup
 
-    local popupList = Instance.new("UIListLayout")
-    popupList.SortOrder = Enum.SortOrder.LayoutOrder
-    popupList.Padding = UDim.new(0, 3)
-    popupList.Parent = popupScroll
+	local popupList = Instance.new("UIListLayout")
+	popupList.SortOrder = Enum.SortOrder.LayoutOrder
+	popupList.Padding = UDim.new(0, 2)
+	popupList.Parent = popupScroll
 
-    local themeList = {
-        "None", "Rainbow", "Biru", "Ungu", "Hijau",
-        "Kuning", "Oren", "Merah", "Pink", "Cyan",
-        "Putih", "Hitam", "Emas", "Abu", "Lime",
-        "Marun", "Navy"
-    }
+	local popupPad = Instance.new("UIPadding")
+	popupPad.PaddingTop = UDim.new(0, 4)
+	popupPad.PaddingBottom = UDim.new(0, 4)
+	popupPad.PaddingLeft = UDim.new(0, 4)
+	popupPad.PaddingRight = UDim.new(0, 4)
+	popupPad.Parent = popupScroll
 
-    local isOpen = false
-    local popupHeight = 220
+	local isOpen = false
 
-    local function positionPopup()
-        local camera = workspace.CurrentCamera
-        if not camera then
-            return
-        end
+	local themeList = {
+		"None", "Rainbow", "Biru", "Ungu", "Hijau", "Kuning", "Oren",
+		"Merah", "Pink", "Cyan", "Putih", "Hitam", "Emas",
+		"Abu", "Lime", "Marun", "Navy"
+	}
 
-        local viewport = camera.ViewportSize
-        local absPos = dropBox.AbsolutePosition
-        local absSize = dropBox.AbsoluteSize
+	local function refreshPopup()
+		for _, child in pairs(popupScroll:GetChildren()) do
+			if child:IsA("TextButton") then child:Destroy() end
+		end
 
-        local popupWidth = math.min(150, viewport.X - 16)
-        local availableBelow = viewport.Y - (absPos.Y + absSize.Y) - 10
-        local availableAbove = absPos.Y - 10
+		local count = 0
+		for _, themeName in ipairs(themeList) do
+			count += 1
+			local themeData = ThemeColors[themeName]
+			local dotColor
+			if themeName == "Rainbow" then
+				dotColor = Color3.fromHSV(tick() % 1, 0.8, 1)
+			elseif themeName == "None" then
+				dotColor = NoneDotColor
+			else
+				dotColor = themeData and themeData.stroke or DefaultPillStroke
+			end
 
-        local showBelow = availableBelow >= 120
-        local height = math.min(
-            popupHeight,
-            math.max(100, showBelow and availableBelow or availableAbove)
-        )
+			local item = Instance.new("TextButton")
+			item.Name = "Item_" .. themeName
+			item.Size = UDim2.new(1, -6, 0, 24)
+			item.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+			item.BackgroundTransparency = 1
+			item.BorderSizePixel = 0
+			item.Text = ""
+			item.AutoButtonColor = false
+			item.LayoutOrder = count
+			item.Parent = popupScroll
 
-        local x = math.clamp(
-            absPos.X + absSize.X - popupWidth,
-            8,
-            math.max(8, viewport.X - popupWidth - 8)
-        )
+			local itemCorner = Instance.new("UICorner")
+			itemCorner.CornerRadius = UDim.new(0, 4)
+			itemCorner.Parent = item
 
-        local y
-        if showBelow then
-            y = absPos.Y + absSize.Y + 4
-        else
-            y = math.max(8, absPos.Y - height - 4)
-        end
+			local dot = Instance.new("Frame")
+			dot.Name = "Dot"
+			dot.Size = UDim2.new(0, 12, 0, 12)
+			dot.Position = UDim2.new(0, 6, 0.5, -6)
+			dot.BackgroundColor3 = dotColor
+			dot.BorderSizePixel = 0
+			dot.Parent = item
 
-        popup.Position = UDim2.fromOffset(x, y)
-        popup.Size = UDim2.fromOffset(popupWidth, height)
-    end
+			local dotCorner = Instance.new("UICorner")
+			dotCorner.CornerRadius = UDim.new(1, 0)
+			dotCorner.Parent = dot
 
-    local function closePopup()
-        isOpen = false
-        popup.Visible = false
-    end
+			local dotStroke = Instance.new("UIStroke")
+			dotStroke.Color = Color3.fromRGB(80, 80, 90)
+			dotStroke.Thickness = 1
+			dotStroke.Parent = dot
 
-    for index, themeName in ipairs(themeList) do
-        local themeData = ThemeColors[themeName]
+			local itemText = Instance.new("TextLabel")
+			itemText.Name = "Text"
+			itemText.Size = UDim2.new(1, -30, 1, 0)
+			itemText.Position = UDim2.new(0, 24, 0, 0)
+			itemText.BackgroundTransparency = 1
+			itemText.Text = themeName
+			itemText.TextColor3 = Colors.Text
+			itemText.Font = Enum.Font.Gotham
+			itemText.TextSize = 10
+			itemText.TextXAlignment = Enum.TextXAlignment.Left
+			itemText.Parent = item
 
-        local item = Instance.new("TextButton")
-        item.Name = "Item_" .. themeName
-        item.Size = UDim2.new(1, -2, 0, 27)
-        item.BackgroundColor3 = Colors.SlotHover
-        item.BackgroundTransparency =
-            ActiveTheme == themeName and 0.35 or 1
-        item.BorderSizePixel = 0
-        item.Text = ""
-        item.AutoButtonColor = false
-        item.LayoutOrder = index
-        item.ZIndex = 102
-        item.Parent = popupScroll
+			if ActiveTheme == themeName then
+				item.BackgroundTransparency = 0.5
+				item.BackgroundColor3 = Colors.SlotHover
+			end
 
-        local itemCorner = Instance.new("UICorner")
-        itemCorner.CornerRadius = UDim.new(0, 4)
-        itemCorner.Parent = item
+			item.MouseEnter:Connect(function()
+				item.BackgroundTransparency = 0.5
+				item.BackgroundColor3 = Colors.SlotHover
+			end)
 
-        local dot = Instance.new("Frame")
-        dot.Name = "Dot"
-        dot.Size = UDim2.new(0, 12, 0, 12)
-        dot.Position = UDim2.new(0, 7, 0.5, -6)
-        dot.BackgroundColor3 =
-            themeName == "Rainbow"
-            and Color3.fromRGB(180, 90, 255)
-            or themeData.stroke
-        dot.BorderSizePixel = 0
-        dot.ZIndex = 103
-        dot.Parent = item
+			item.MouseLeave:Connect(function()
+				if ActiveTheme ~= themeName then
+					item.BackgroundTransparency = 1
+				end
+			end)
 
-        local dotCorner = Instance.new("UICorner")
-        dotCorner.CornerRadius = UDim.new(1, 0)
-        dotCorner.Parent = dot
+			item.MouseButton1Click:Connect(function()
+				applyPillTheme(themeName)
+				dropBox.Text = themeName
+				isOpen = false
+				popup.Visible = false
+				popup.Size = UDim2.new(0, 110, 0, 0)
+			end)
+		end
 
-        local itemText = Instance.new("TextLabel")
-        itemText.Name = "ThemeName"
-        itemText.Size = UDim2.new(1, -32, 1, 0)
-        itemText.Position = UDim2.new(0, 27, 0, 0)
-        itemText.BackgroundTransparency = 1
-        itemText.Text = themeName
-        itemText.TextColor3 = Colors.Text
-        itemText.Font = Enum.Font.Gotham
-        itemText.TextSize = 10
-        itemText.TextXAlignment = Enum.TextXAlignment.Left
-        itemText.ZIndex = 103
-        itemText.Parent = item
+		return count
+	end
 
-        item.MouseEnter:Connect(function()
-            item.BackgroundTransparency = 0.35
-        end)
-
-        item.MouseLeave:Connect(function()
-            item.BackgroundTransparency =
-                ActiveTheme == themeName and 0.35 or 1
-        end)
-
-        item.MouseButton1Click:Connect(function()
-            applyPillTheme(themeName)
-            dropBox.Text = themeName
-            dropStroke.Color = ThemeColors[themeName].border
-
-            closePopup()
-        end)
-    end
-
-    dropBox.MouseButton1Click:Connect(function()
-        isOpen = not isOpen
-
-        if isOpen then
-            positionPopup()
-            popup.Visible = true
-        else
-            closePopup()
-        end
-    end)
-
-    -- Tutup dropdown ketika pengguna mengetuk area lain.
-    UserInputService.InputBegan:Connect(function(input)
-        if not isOpen then
-            return
-        end
-
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-
-            task.defer(function()
-                if not isOpen then
-                    return
-                end
-
-                local mousePos = UserInputService:GetMouseLocation()
-                local pPos = popup.AbsolutePosition
-                local pSize = popup.AbsoluteSize
-                local dPos = dropBox.AbsolutePosition
-                local dSize = dropBox.AbsoluteSize
-
-                local inPopup =
-                    mousePos.X >= pPos.X
-                    and mousePos.X <= pPos.X + pSize.X
-                    and mousePos.Y >= pPos.Y
-                    and mousePos.Y <= pPos.Y + pSize.Y
-
-                local inButton =
-                    mousePos.X >= dPos.X
-                    and mousePos.X <= dPos.X + dSize.X
-                    and mousePos.Y >= dPos.Y
-                    and mousePos.Y <= dPos.Y + dSize.Y
-
-                if not inPopup and not inButton then
-                    closePopup()
-                end
-            end)
-        end
-    end)
-
-    -- Perbarui posisi popup jika ukuran layar berubah.
-    if workspace.CurrentCamera then
-        workspace.CurrentCamera:GetPropertyChangedSignal(
-            "ViewportSize"
-        ):Connect(function()
-            if isOpen then
-                positionPopup()
-            end
-        end)
-    end
+	dropBox.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		if isOpen then
+			local count = refreshPopup()
+			local absPos = dropBox.AbsolutePosition
+			local absSize = dropBox.AbsoluteSize
+			popup.Position = UDim2.new(0, absPos.X - 3, 0, absPos.Y + absSize.Y + 2)
+			popup.Visible = true
+			local h = math.max(math.min(count, 8) * 26 + 8, 30)
+			popup.Size = UDim2.new(0, 110, 0, h)
+		else
+			popup.Visible = false
+			popup.Size = UDim2.new(0, 110, 0, 0)
+		end
+	end)
 end
 
 --============================================================
--- PART 4 SELESAI
--- PART 5: TAB, SEARCH, INITIAL HOME, FINAL
+-- SIDEBAR BUTTONS
 --============================================================
+createSidebarButton("Home", 1, loadHomePanel)
+createSidebarButton("Farm", 2, function() end)
+createSidebarButton("Misc", 3, function() end)
+createSidebarButton("Settings", 4, loadSettingsPanel)
+createSidebarButton("Info", 5, loadInfoPanel)
 
 --============================================================
--- ZORX HUB - PART 5/5
--- NAVIGATION, SEARCH, INITIALIZATION
+-- LANGSUNG KE HOME SAAT EXECUTE
 --============================================================
+task.wait(0.1)
 
---============================================================
--- PLACEHOLDER PANEL UNTUK FARM DAN MISC
--- Bisa diisi fitur asli kamu nanti.
---============================================================
-
-local function loadPlaceholderPanel(titleText, descriptionText)
-    clearContent()
-
-    local card = createCard("FeatureCard", 100, 1)
-
-    createLabel(
-        card,
-        "FeatureTitle",
-        titleText,
-        UDim2.new(0, 14, 0, 14),
-        UDim2.new(1, -28, 0, 22),
-        13,
-        Colors.Text
-    ).Font = Enum.Font.GothamBold
-
-    createLabel(
-        card,
-        "FeatureDescription",
-        descriptionText,
-        UDim2.new(0, 14, 0, 42),
-        UDim2.new(1, -28, 0, 45),
-        10,
-        Colors.SubText
-    )
+activeTab = sidebarButtons[1]
+if sidebarButtons[1] then
+	local lbl = sidebarButtons[1]:FindFirstChild("Label")
+	if lbl then
+		lbl.TextColor3 = Colors.Text
+	end
+	TweenService:Create(sidebarButtons[1], TweenInfo.new(0.15), {
+		BackgroundTransparency = 0.5,
+		BackgroundColor3 = Colors.SlotHover
+	}):Play()
 end
 
---============================================================
--- CREATE ALL SIDEBAR TABS
---============================================================
+loadHomePanel()
 
-createSidebarButton("Home", 1, function()
-    loadHomePanel()
-end)
-
-createSidebarButton("Farm", 2, function()
-    loadPlaceholderPanel(
-        "Farm",
-        "Area fitur Farm. Tambahkan fitur Farm kamu di bagian ini."
-    )
-end)
-
-createSidebarButton("Misc", 3, function()
-    loadPlaceholderPanel(
-        "Miscellaneous",
-        "Area fitur Misc. Tambahkan fitur tambahan kamu di bagian ini."
-    )
-end)
-
-createSidebarButton("Settings", 4, function()
-    loadSettingsPanel()
-end)
-
-createSidebarButton("Info", 5, function()
-    loadInfoPanel()
-end)
-
---============================================================
--- SEARCH SIDEBAR DAN ISI PANEL
---============================================================
-
-local function filterContent(query)
-    query = string.lower(query)
-
-    for _, child in ipairs(Scroll:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextLabel") then
-            local found = false
-
-            if query == "" then
-                found = true
-            else
-                if child:IsA("TextLabel")
-                    and string.find(
-                        string.lower(child.Text),
-                        query,
-                        1,
-                        true
-                    ) then
-                    found = true
-                end
-
-                for _, descendant in ipairs(child:GetDescendants()) do
-                    if descendant:IsA("TextLabel")
-                        and string.find(
-                            string.lower(descendant.Text),
-                            query,
-                            1,
-                            true
-                        ) then
-                        found = true
-                        break
-                    end
-                end
-            end
-
-            child.Visible = found
-        end
-    end
-end
-
-SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local query = string.lower(SearchBox.Text)
-
-    for _, btn in ipairs(SidebarButtonContainer:GetChildren()) do
-        if btn:IsA("TextButton") then
-            local label = btn:FindFirstChild("Label")
-
-            if label then
-                btn.Visible =
-                    query == ""
-                    or string.find(
-                        string.lower(label.Text),
-                        query,
-                        1,
-                        true
-                    ) ~= nil
-            end
-        end
-    end
-
-    filterContent(query)
-end)
-
---============================================================
--- INITIAL HOME TAB
---============================================================
-
-task.defer(function()
-    if not ScreenGui.Parent then
-        return
-    end
-
-    activeTab = sidebarButtons[1]
-
-    for _, btn in ipairs(sidebarButtons) do
-        local label = btn:FindFirstChild("Label")
-
-        btn.BackgroundTransparency = 1
-
-        if label then
-            label.TextColor3 = Colors.SubText
-        end
-    end
-
-    if activeTab then
-        activeTab.BackgroundTransparency = 0.5
-        activeTab.BackgroundColor3 = Colors.SlotHover
-
-        local label = activeTab:FindFirstChild("Label")
-        if label then
-            label.TextColor3 = Colors.Text
-        end
-    end
-
-    loadHomePanel()
-end)
-
-
---============================================================
--- RESPONSIVE FRAME - UKURAN NORMAL 500 x 320
---============================================================
-
-local function updateMainSize()
-    local camera = workspace.CurrentCamera
-    if not camera then return end
-
-    if isMaximized then
-        return
-    end
-
-    local viewport = camera.ViewportSize
-
-    local width = math.min(500, viewport.X * 0.90)
-    local height = math.min(320, viewport.Y * 0.85)
-
-    width = math.max(300, width)
-    height = math.max(240, height)
-
-    Main.Size = UDim2.fromOffset(width, height)
-    Main.Position = UDim2.fromScale(0.5, 0.5)
-end
-
-updateMainSize()
-
-if workspace.CurrentCamera then
-    workspace.CurrentCamera:GetPropertyChangedSignal(
-        "ViewportSize"
-    ):Connect(updateMainSize)
-end
-
---============================================================
--- FINAL
---============================================================
-
-print("ZORX HUB - FIX TOTAL UI LOADED!")
-print("Home, Farm, Misc, Settings, Info ready.")
+print("ZORX Hub - Loaded!")
