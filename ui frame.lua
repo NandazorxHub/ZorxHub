@@ -1,5 +1,5 @@
 --============================================================
--- ZORX HUB - FIX TOTAL (CLIP + UKURAN)
+-- ZORX HUB - FULL SCRIPT (WATERMARK ACROSS ALL TABS & ORIGINAL INFO)
 --============================================================
 
 local Players = game:GetService("Players")
@@ -10,7 +10,12 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ===== BASE COLORS =====
+for _, gui in pairs(playerGui:GetChildren()) do
+	if gui.Name == "ZorXHub" then
+		gui:Destroy()
+	end
+end
+
 local Colors = {
 	Background   = Color3.fromRGB(15, 15, 18),
 	Sidebar      = Color3.fromRGB(18, 18, 22),
@@ -33,7 +38,6 @@ local DefaultBorder = Color3.fromRGB(45, 45, 55)
 local InfoLogoBorder = Color3.fromRGB(160, 80, 255)
 local NoneDotColor = Color3.fromRGB(45, 45, 55)
 
--- ===== AUTO DETECT GAME =====
 local function getGameName()
 	local name = "Unknown Game"
 	pcall(function()
@@ -50,7 +54,6 @@ local function getGameName()
 	return name
 end
 
--- ===== THEME COLORS =====
 local ThemeColors = {
 	None   = { bg = DefaultPillBg,       stroke = DefaultPillStroke,           text = DefaultPillText,           border = DefaultBorder,  infoLogo = InfoLogoBorder },
 	Biru   = { bg = Color3.fromRGB(25,55,130),   stroke = Color3.fromRGB(60,120,220),  text = Color3.fromRGB(220,235,255), border = Color3.fromRGB(60,120,220),  infoLogo = Color3.fromRGB(60,120,220) },
@@ -76,20 +79,15 @@ local RainbowActive = false
 local RainbowHue = 0
 
 local function getTodayDate()
-	local day = os.date("%d")
-	local month = os.date("%m")
-	local year = os.date("%Y")
-	return day .. "/" .. month .. "/" .. year
+	return os.date("%d/%m/%Y")
 end
 
---============================================================
--- UI CODE
---============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZorXHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 10
 ScreenGui.Parent = playerGui
 
 local PopupLayer = Instance.new("Frame")
@@ -99,42 +97,178 @@ PopupLayer.BackgroundTransparency = 1
 PopupLayer.ZIndex = 50
 PopupLayer.Parent = ScreenGui
 
--- MAIN FRAME (FIX CLIPS)
+-- FUNGSI NOTIFIKASI KANAN ATAS
+local function sendNotification(titleText, messageText, iconId, duration)
+	duration = duration or 3.5
+
+	local notif = Instance.new("Frame")
+	notif.Name = "ZorxNotif"
+	notif.Size = UDim2.new(0, 240, 0, 52)
+	notif.Position = UDim2.new(1, -250, 0, -60) 
+	notif.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+	notif.BorderSizePixel = 0
+	notif.ZIndex = 200
+	notif.Parent = ScreenGui
+
+	local nCorner = Instance.new("UICorner")
+	nCorner.CornerRadius = UDim.new(0, 8)
+	nCorner.Parent = notif
+
+	local nStroke = Instance.new("UIStroke")
+	nStroke.Color = Color3.fromRGB(45, 45, 55)
+	nStroke.Thickness = 1
+	nStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	nStroke.Parent = notif
+
+	local nIcon = Instance.new("ImageLabel")
+	nIcon.Name = "NotifIcon"
+	nIcon.Size = UDim2.new(0, 28, 0, 28)
+	nIcon.Position = UDim2.new(0, 10, 0.5, -14)
+	nIcon.BackgroundTransparency = 1
+	nIcon.Image = "rbxassetid://" .. tostring(iconId or "77776661633653")
+	nIcon.ScaleType = Enum.ScaleType.Fit
+	nIcon.Parent = notif
+
+	local nTitle = Instance.new("TextLabel")
+	nTitle.Name = "NotifTitle"
+	nTitle.Size = UDim2.new(1, -65, 0, 16)
+	nTitle.Position = UDim2.new(0, 46, 0, 8)
+	nTitle.BackgroundTransparency = 1
+	nTitle.Text = titleText or "Zorx Community"
+	nTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+	nTitle.Font = Enum.Font.GothamBold
+	nTitle.TextSize = 11
+	nTitle.TextXAlignment = Enum.TextXAlignment.Left
+	nTitle.Parent = notif
+
+	local nDesc = Instance.new("TextLabel")
+	nDesc.Name = "NotifDesc"
+	nDesc.Size = UDim2.new(1, -65, 0, 20)
+	nDesc.Position = UDim2.new(0, 46, 0, 24)
+	nDesc.BackgroundTransparency = 1
+	nDesc.Text = messageText or "Information updated."
+	nDesc.TextColor3 = Color3.fromRGB(140, 140, 150)
+	nDesc.Font = Enum.Font.Gotham
+	nDesc.TextSize = 9
+	nDesc.TextXAlignment = Enum.TextXAlignment.Left
+	nDesc.TextYAlignment = Enum.TextYAlignment.Top
+	nDesc.TextWrapped = true
+	nDesc.Parent = notif
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 20, 0, 20)
+	closeBtn.Position = UDim2.new(1, -24, 0, 6)
+	closeBtn.BackgroundTransparency = 1
+	closeBtn.Text = ""
+	closeBtn.AutoButtonColor = false
+	closeBtn.Parent = notif
+
+	local closeIcon = Instance.new("ImageLabel")
+	closeIcon.Size = UDim2.new(0, 12, 0, 12)
+	closeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+	closeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+	closeIcon.BackgroundTransparency = 1
+	closeIcon.Image = "rbxassetid://85435035697164"
+	closeIcon.ImageColor3 = Color3.fromRGB(180, 180, 190)
+	closeIcon.ScaleType = Enum.ScaleType.Fit
+	closeIcon.Parent = closeBtn
+
+	TweenService:Create(notif, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(1, -250, 0, 20)
+	}):Play()
+
+	local function dismiss()
+		local slideOut = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(1, -250, 0, -60)
+		})
+		slideOut:Play()
+		slideOut.Completed:Connect(function()
+			notif:Destroy()
+		end)
+	end
+
+	closeBtn.MouseButton1Click:Connect(dismiss)
+
+	task.delay(duration, function()
+		if notif and notif.Parent then
+			dismiss()
+		end
+	end)
+end
+
+-- MAIN WINDOW
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 500, 0, 320)
-Main.Position = UDim2.new(0.5, -250, 0.5, -160)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.new(0, 480, 0, 300)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
 Main.BackgroundColor3 = Colors.Background
 Main.BorderSizePixel = 0
 Main.Active = true
 Main.Draggable = true
-Main.ClipsDescendants = true -- FIX UTAMA
 Main.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = Main
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = DefaultBorder
-MainStroke.Thickness = 1
+MainStroke.Thickness = 1.5
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = Main
 
--- ===== TOP BAR =====
+local allBorders = {}
+local function registerBorder(stroke)
+	table.insert(allBorders, stroke)
+end
+registerBorder(MainStroke)
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Name = "MinimizeBtn"
+MinimizeBtn.Size = UDim2.new(0, 45, 0, 45)
+MinimizeBtn.Position = UDim2.new(0.5, -22, 0.5, -22)
+MinimizeBtn.BackgroundColor3 = Colors.Background
+MinimizeBtn.BorderSizePixel = 0
+MinimizeBtn.Text = "Z"
+MinimizeBtn.TextColor3 = Colors.Text
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 26
+MinimizeBtn.AutoButtonColor = false
+MinimizeBtn.Visible = false
+MinimizeBtn.Active = true
+MinimizeBtn.Draggable = true
+MinimizeBtn.Parent = ScreenGui
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 10)
+MiniCorner.Parent = MinimizeBtn
+
+local MinimizeStroke = Instance.new("UIStroke")
+MinimizeStroke.Color = DefaultBorder
+MinimizeStroke.Thickness = 1
+MinimizeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MinimizeStroke.Parent = MinimizeBtn
+registerBorder(MinimizeStroke)
+
+local function setUIOpen(open)
+	Main.Visible = open
+	PopupLayer.Visible = open
+	MinimizeBtn.Visible = not open
+end
+
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 32)
 TopBar.BackgroundColor3 = Colors.Background
 TopBar.BorderSizePixel = 0
-TopBar.ClipsDescendants = true
 TopBar.Parent = Main
 
-local TopBarCorner = Instance.new("UICorner")
-TopBarCorner.CornerRadius = UDim.new(0, 8)
-TopBarCorner.Parent = TopBar
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
 
 local LogoImg = Instance.new("ImageLabel")
-LogoImg.Name = "LogoImg"
 LogoImg.Size = UDim2.new(0, 18, 0, 18)
 LogoImg.Position = UDim2.new(0, 10, 0.5, -9)
 LogoImg.BackgroundTransparency = 1
@@ -156,9 +290,9 @@ Title.Parent = TopBar
 
 local PillContainer = Instance.new("Frame")
 PillContainer.Name = "PillContainer"
-PillContainer.Size = UDim2.new(0, 0, 1, 0)
+PillContainer.Size = UDim2.new(0, 0, 0, 22)
 PillContainer.AutomaticSize = Enum.AutomaticSize.X
-PillContainer.Position = UDim2.new(1, -72, 0, 0)
+PillContainer.Position = UDim2.new(1, -72, 0.5, -11)
 PillContainer.AnchorPoint = Vector2.new(1, 0)
 PillContainer.BackgroundTransparency = 1
 PillContainer.Parent = TopBar
@@ -173,20 +307,14 @@ PillList.Parent = PillContainer
 local allPills = {}
 local allPillStrokes = {}
 local allPillTexts = {}
-local allBorders = {}
 local infoLogoBorders = {}
-
-local function registerBorder(stroke)
-	table.insert(allBorders, stroke)
-end
 
 local function registerInfoLogoBorder(stroke)
 	table.insert(infoLogoBorders, stroke)
 end
 
-local function createPill(textText, width)
+local function createPill(textText, width, iconId)
 	local pill = Instance.new("Frame")
-	pill.Name = "Pill"
 	pill.Size = UDim2.new(0, width, 0, 22)
 	pill.BackgroundColor3 = DefaultPillBg
 	pill.BorderSizePixel = 0
@@ -199,12 +327,22 @@ local function createPill(textText, width)
 	local pStroke = Instance.new("UIStroke")
 	pStroke.Color = DefaultPillStroke
 	pStroke.Thickness = 1
+	pStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	pStroke.Parent = pill
 
+	if iconId and iconId ~= "" then
+		local pIcon = Instance.new("ImageLabel")
+		pIcon.Size = UDim2.new(0, 15, 0, 15)
+		pIcon.Position = UDim2.new(0, 9, 0.5, -7.5)
+		pIcon.BackgroundTransparency = 1
+		pIcon.Image = "rbxassetid://" .. iconId
+		pIcon.ScaleType = Enum.ScaleType.Fit
+		pIcon.Parent = pill
+	end
+
 	local txt = Instance.new("TextLabel")
-	txt.Name = "Text"
-	txt.Size = UDim2.new(1, 0, 1, 0)
-	txt.Position = UDim2.new(0, 0, 0, 0)
+	txt.Size = UDim2.new(1, iconId and -24 or 0, 1, 0)
+	txt.Position = UDim2.new(0, iconId and 22 or 0, 0, 0)
 	txt.BackgroundTransparency = 1
 	txt.Text = textText
 	txt.TextColor3 = DefaultPillText
@@ -221,9 +359,9 @@ local function createPill(textText, width)
 	return pill, txt
 end
 
-local gamePill, gameText = createPill(getGameName(), 170)
-local fpsPill, fpsText = createPill("0", 45)
-local execPill, execText = createPill("Delta", 55)
+local gamePill, gameText = createPill(getGameName(), 145, "83907651602856")
+local fpsPill, fpsText = createPill("0", 48, "87621836182790")
+local execPill, execText = createPill("Delta", 58, "76551269066313")
 
 task.spawn(function()
 	while task.wait(5) do
@@ -234,20 +372,15 @@ task.spawn(function()
 	end
 end)
 
--- ===== TOMBOL MAXIMIZE =====
 local MaximizeBtn = Instance.new("TextButton")
-MaximizeBtn.Name = "MaximizeBtn"
 MaximizeBtn.Size = UDim2.new(0, 26, 0, 26)
 MaximizeBtn.Position = UDim2.new(1, -60, 0.5, -13)
 MaximizeBtn.BackgroundTransparency = 1
 MaximizeBtn.Text = ""
 MaximizeBtn.AutoButtonColor = false
-MaximizeBtn.Active = true
-MaximizeBtn.ZIndex = 10
 MaximizeBtn.Parent = TopBar
 
 local MaximizeIcon = Instance.new("ImageLabel")
-MaximizeIcon.Name = "Icon"
 MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
 MaximizeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
 MaximizeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -255,23 +388,17 @@ MaximizeIcon.BackgroundTransparency = 1
 MaximizeIcon.Image = "rbxassetid://85264421376424"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
 MaximizeIcon.ScaleType = Enum.ScaleType.Fit
-MaximizeIcon.ZIndex = 11
 MaximizeIcon.Parent = MaximizeBtn
 
--- ===== TOMBOL CLOSE =====
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -30, 0.5, -13)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = ""
 CloseBtn.AutoButtonColor = false
-CloseBtn.Active = true
-CloseBtn.ZIndex = 10
 CloseBtn.Parent = TopBar
 
 local CloseIcon = Instance.new("ImageLabel")
-CloseIcon.Name = "Icon"
 CloseIcon.Size = UDim2.new(0, 16, 0, 16)
 CloseIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
 CloseIcon.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -279,37 +406,7 @@ CloseIcon.BackgroundTransparency = 1
 CloseIcon.Image = "rbxassetid://85435035697164"
 CloseIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
 CloseIcon.ScaleType = Enum.ScaleType.Fit
-CloseIcon.ZIndex = 11
 CloseIcon.Parent = CloseBtn
-
--- ===== MINIMIZE BUTTON =====
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Name = "MinimizeBtn"
-MinimizeBtn.Size = UDim2.new(0, 45, 0, 45)
-MinimizeBtn.Position = UDim2.new(0.5, -22, 0.5, -22)
-MinimizeBtn.BackgroundColor3 = Colors.Background
-MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Text = "Z"
-MinimizeBtn.TextColor3 = Colors.Text
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.TextSize = 26
-MinimizeBtn.AutoButtonColor = false
-MinimizeBtn.ZIndex = 60
-MinimizeBtn.Visible = false
-MinimizeBtn.Active = true
-MinimizeBtn.Draggable = true
-MinimizeBtn.Parent = ScreenGui
-
-local MinimizeStroke = Instance.new("UIStroke")
-MinimizeStroke.Color = DefaultBorder
-MinimizeStroke.Thickness = 1
-MinimizeStroke.Parent = MinimizeBtn
-
-local function setUIOpen(open)
-	Main.Visible = open
-	PopupLayer.Visible = open
-	MinimizeBtn.Visible = not open
-end
 
 CloseBtn.MouseButton1Click:Connect(function()
 	setUIOpen(false)
@@ -320,25 +417,12 @@ MinimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 local isMaximized = false
-
-local NORMAL_SIZE = UDim2.new(0, 500, 0, 320)
-local NORMAL_POS = UDim2.new(0.5, -250, 0.5, -160)
-local MAX_SIZE = UDim2.new(0, 700, 0, 450)
-local MAX_POS = UDim2.new(0.5, -350, 0.5, -225)
-
 MaximizeBtn.MouseButton1Click:Connect(function()
 	isMaximized = not isMaximized
-	if isMaximized then
-		TweenService:Create(Main, TweenInfo.new(0.3), {
-			Size = MAX_SIZE,
-			Position = MAX_POS
-		}):Play()
-	else
-		TweenService:Create(Main, TweenInfo.new(0.3), {
-			Size = NORMAL_SIZE,
-			Position = NORMAL_POS
-		}):Play()
-	end
+	TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = isMaximized and UDim2.new(0, 620, 0, 390) or UDim2.new(0, 480, 0, 300),
+		Position = UDim2.new(0.5, 0, 0.5, 0)
+	}):Play()
 end)
 
 local frameCount = 0
@@ -352,7 +436,6 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- ===== DIVIDER =====
 local TopDivider = Instance.new("Frame")
 TopDivider.Name = "TopDivider"
 TopDivider.Size = UDim2.new(1, 0, 0, 1)
@@ -361,15 +444,17 @@ TopDivider.BackgroundColor3 = DefaultBorder
 TopDivider.BorderSizePixel = 0
 TopDivider.Parent = Main
 
--- ===== SIDEBAR (FIX CLIPS) =====
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
 Sidebar.Size = UDim2.new(0, 120, 1, -33)
 Sidebar.Position = UDim2.new(0, 0, 0, 33)
 Sidebar.BackgroundColor3 = Colors.Sidebar
 Sidebar.BorderSizePixel = 0
-Sidebar.ClipsDescendants = true -- FIX
 Sidebar.Parent = Main
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 10)
+SidebarCorner.Parent = Sidebar
 
 local SidebarPad = Instance.new("UIPadding")
 SidebarPad.PaddingTop = UDim.new(0, 8)
@@ -378,11 +463,9 @@ SidebarPad.PaddingRight = UDim.new(0, 6)
 SidebarPad.PaddingBottom = UDim.new(0, 8)
 SidebarPad.Parent = Sidebar
 
--- SEARCH BAR
 local SearchContainer = Instance.new("Frame")
 SearchContainer.Name = "SearchContainer"
 SearchContainer.Size = UDim2.new(1, 0, 0, 26)
-SearchContainer.Position = UDim2.new(0, 0, 0, 0)
 SearchContainer.BackgroundColor3 = Colors.Slot
 SearchContainer.BorderSizePixel = 0
 SearchContainer.Parent = Sidebar
@@ -394,10 +477,11 @@ SearchCorner.Parent = SearchContainer
 local SearchStroke = Instance.new("UIStroke")
 SearchStroke.Color = DefaultBorder
 SearchStroke.Thickness = 1
+SearchStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 SearchStroke.Parent = SearchContainer
+registerBorder(SearchStroke)
 
 local SearchIcon = Instance.new("ImageLabel")
-SearchIcon.Name = "SearchIcon"
 SearchIcon.Size = UDim2.new(0, 12, 0, 12)
 SearchIcon.Position = UDim2.new(0, 6, 0.5, -6)
 SearchIcon.BackgroundTransparency = 1
@@ -421,10 +505,9 @@ SearchBox.TextXAlignment = Enum.TextXAlignment.Left
 SearchBox.ClearTextOnFocus = false
 SearchBox.Parent = SearchContainer
 
--- BUTTON CONTAINER
 local SidebarButtonContainer = Instance.new("Frame")
 SidebarButtonContainer.Name = "ButtonContainer"
-SidebarButtonContainer.Size = UDim2.new(1, 0, 1, -86)
+SidebarButtonContainer.Size = UDim2.new(1, 0, 1, -66)
 SidebarButtonContainer.Position = UDim2.new(0, 0, 0, 34)
 SidebarButtonContainer.BackgroundTransparency = 1
 SidebarButtonContainer.ClipsDescendants = true
@@ -443,31 +526,127 @@ SidebarDivider.BackgroundColor3 = DefaultBorder
 SidebarDivider.BorderSizePixel = 0
 SidebarDivider.Parent = Main
 
--- ===== CONTENT (FIX CLIPS) =====
+local DiscordPill = Instance.new("TextButton")
+DiscordPill.Name = "DiscordPill"
+DiscordPill.Size = UDim2.new(1, 0, 0, 26)
+DiscordPill.Position = UDim2.new(0, 0, 1, -26)
+DiscordPill.BackgroundColor3 = DefaultPillBg
+DiscordPill.BorderSizePixel = 0
+DiscordPill.Text = ""
+DiscordPill.AutoButtonColor = false
+DiscordPill.Parent = Sidebar
+
+local dpCorner = Instance.new("UICorner")
+dpCorner.CornerRadius = UDim.new(0, 5)
+dpCorner.Parent = DiscordPill
+
+local dpStroke = Instance.new("UIStroke")
+dpStroke.Color = DefaultPillStroke
+dpStroke.Thickness = 1
+dpStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+dpStroke.Parent = DiscordPill
+
+local DiscordIcon = Instance.new("ImageLabel")
+DiscordIcon.Size = UDim2.new(0, 14, 0, 14)
+DiscordIcon.Position = UDim2.new(0, 6, 0.5, -7)
+DiscordIcon.BackgroundTransparency = 1
+DiscordIcon.Image = "rbxassetid://98671378613860"
+DiscordIcon.ScaleType = Enum.ScaleType.Fit
+DiscordIcon.Parent = DiscordPill
+
+local DiscordTitle = Instance.new("TextLabel")
+DiscordTitle.Size = UDim2.new(1, -26, 0, 11)
+DiscordTitle.Position = UDim2.new(0, 24, 0, 2)
+DiscordTitle.BackgroundTransparency = 1
+DiscordTitle.Text = "Discord"
+DiscordTitle.TextColor3 = DefaultPillText
+DiscordTitle.Font = Enum.Font.GothamBold
+DiscordTitle.TextSize = 9
+DiscordTitle.TextXAlignment = Enum.TextXAlignment.Left
+DiscordTitle.TextTruncate = Enum.TextTruncate.AtEnd
+DiscordTitle.Parent = DiscordPill
+
+local DiscordLink = Instance.new("TextLabel")
+DiscordLink.Size = UDim2.new(1, -26, 0, 10)
+DiscordLink.Position = UDim2.new(0, 24, 0, 13)
+DiscordLink.BackgroundTransparency = 1
+DiscordLink.Text = "discord.gg/cvWW5DBZKR"
+DiscordLink.TextColor3 = Color3.fromRGB(140, 140, 150)
+DiscordLink.Font = Enum.Font.Gotham
+DiscordLink.TextSize = 7
+DiscordLink.TextXAlignment = Enum.TextXAlignment.Left
+DiscordLink.TextTruncate = Enum.TextTruncate.AtEnd
+DiscordLink.Parent = DiscordPill
+
+table.insert(allPills, DiscordPill)
+table.insert(allPillStrokes, dpStroke)
+table.insert(allPillTexts, DiscordTitle)
+
+DiscordPill.MouseEnter:Connect(function()
+	TweenService:Create(DiscordPill, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(45, 45, 55) }):Play()
+end)
+DiscordPill.MouseLeave:Connect(function()
+	if RainbowActive then return end
+	local theme = ThemeColors[ActiveTheme]
+	TweenService:Create(DiscordPill, TweenInfo.new(0.15), { BackgroundColor3 = theme.bg }):Play()
+end)
+
+DiscordPill.MouseButton1Click:Connect(function()
+	pcall(function()
+		if setclipboard then
+			setclipboard("https://discord.gg/3MrpqYycs")
+		elseif toclipboard then
+			toclipboard("https://discord.gg/3MrpqYycs")
+		end
+	end)
+	sendNotification("Discord", "Discord link copied to clipboard!", "98671378613860", 3)
+end)
+
 local Content = Instance.new("Frame")
 Content.Name = "Content"
 Content.Size = UDim2.new(1, -121, 1, -33)
 Content.Position = UDim2.new(0, 121, 0, 33)
 Content.BackgroundColor3 = Colors.Panel
 Content.BorderSizePixel = 0
-Content.ClipsDescendants = true -- FIX
+Content.ClipsDescendants = true
 Content.Parent = Main
+
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 10)
+ContentCorner.Parent = Content
+
+-- ============================================================
+-- WATERMARK LOGO BACKGROUND (BERLAKU DI SEMUA TAB/PANEL)
+-- ============================================================
+local WatermarkLogo = Instance.new("ImageLabel")
+WatermarkLogo.Name = "WatermarkLogo"
+WatermarkLogo.Size = UDim2.new(0, 180, 0, 180)
+WatermarkLogo.Position = UDim2.new(0.5, 0, 0.5, 0)
+WatermarkLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+WatermarkLogo.BackgroundTransparency = 1
+WatermarkLogo.Image = "rbxassetid://77776661633653" -- Ganti ID Asset logo kamu di sini
+WatermarkLogo.ImageTransparency = 0.88 -- Mengatur kesamaran logo (semakin tinggi nilainya semakin pudar)
+WatermarkLogo.ScaleType = Enum.ScaleType.Fit
+WatermarkLogo.ZIndex = 1
+WatermarkLogo.Parent = Content
 
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Name = "Scroll"
-Scroll.Size = UDim2.new(1, -16, 1, -16)
-Scroll.Position = UDim2.new(0, 8, 0, 8)
+Scroll.Size = UDim2.new(1, -12, 1, -10)
+Scroll.Position = UDim2.new(0, 6, 0, 5)
 Scroll.BackgroundTransparency = 1
 Scroll.BorderSizePixel = 0
 Scroll.ScrollBarThickness = 4
 Scroll.ScrollBarImageColor3 = Colors.Stroke
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll.ClipsDescendants = true
+Scroll.ZIndex = 2
 Scroll.Parent = Content
 
 local ScrollPad = Instance.new("UIPadding")
-ScrollPad.PaddingRight = UDim.new(0, 6)
+ScrollPad.PaddingTop = UDim.new(0, 6)
+ScrollPad.PaddingRight = UDim.new(0, 2)
+ScrollPad.PaddingLeft = UDim.new(0, 2)
 ScrollPad.Parent = Scroll
 
 local ScrollList = Instance.new("UIListLayout")
@@ -475,18 +654,13 @@ ScrollList.SortOrder = Enum.SortOrder.LayoutOrder
 ScrollList.Padding = UDim.new(0, 8)
 ScrollList.Parent = Scroll
 
-registerBorder(MainStroke)
-registerBorder(MinimizeStroke)
-registerBorder(SearchStroke)
-
 local sidebarButtons = {}
 local activeTab = nil
 
-local function createSidebarButton(text, order, onClick)
+local function createSidebarButton(text, order, iconId, onClick)
 	local btn = Instance.new("TextButton")
 	btn.Name = text
 	btn.Size = UDim2.new(1, 0, 0, 26)
-	btn.BackgroundColor3 = Colors.Sidebar
 	btn.BackgroundTransparency = 1
 	btn.BorderSizePixel = 0
 	btn.Text = ""
@@ -498,10 +672,20 @@ local function createSidebarButton(text, order, onClick)
 	btnCorner.CornerRadius = UDim.new(0, 5)
 	btnCorner.Parent = btn
 
+	if iconId and iconId ~= "" then
+		local btnIcon = Instance.new("ImageLabel")
+		btnIcon.Size = UDim2.new(0, 14, 0, 14)
+		btnIcon.Position = UDim2.new(0, 6, 0.5, -7)
+		btnIcon.BackgroundTransparency = 1
+		btnIcon.Image = "rbxassetid://" .. iconId
+		btnIcon.ScaleType = Enum.ScaleType.Fit
+		btnIcon.Parent = btn
+	end
+
 	local textLabel = Instance.new("TextLabel")
 	textLabel.Name = "Label"
-	textLabel.Size = UDim2.new(1, -16, 1, 0)
-	textLabel.Position = UDim2.new(0, 8, 0, 0)
+	textLabel.Size = UDim2.new(1, iconId and -24 or -16, 1, 0)
+	textLabel.Position = UDim2.new(0, iconId and 24 or 8, 0, 0)
 	textLabel.BackgroundTransparency = 1
 	textLabel.Text = text
 	textLabel.TextColor3 = Colors.SubText
@@ -512,48 +696,27 @@ local function createSidebarButton(text, order, onClick)
 
 	btn.MouseEnter:Connect(function()
 		if activeTab ~= btn then
-			TweenService:Create(btn, TweenInfo.new(0.15), {
-				BackgroundTransparency = 0.7,
-				BackgroundColor3 = Colors.SlotHover
-			}):Play()
-			TweenService:Create(textLabel, TweenInfo.new(0.15), {
-				TextColor3 = Colors.Text
-			}):Play()
+			TweenService:Create(btn, TweenInfo.new(0.15), { BackgroundTransparency = 0.7, BackgroundColor3 = Colors.SlotHover }):Play()
+			TweenService:Create(textLabel, TweenInfo.new(0.15), { TextColor3 = Colors.Text }):Play()
 		end
 	end)
 
 	btn.MouseLeave:Connect(function()
 		if activeTab ~= btn then
-			TweenService:Create(btn, TweenInfo.new(0.15), {
-				BackgroundTransparency = 1
-			}):Play()
-			TweenService:Create(textLabel, TweenInfo.new(0.15), {
-				TextColor3 = Colors.SubText
-			}):Play()
+			TweenService:Create(btn, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
+			TweenService:Create(textLabel, TweenInfo.new(0.15), { TextColor3 = Colors.SubText }):Play()
 		end
 	end)
 
 	btn.MouseButton1Click:Connect(function()
 		for _, b in pairs(sidebarButtons) do
-			TweenService:Create(b, TweenInfo.new(0.15), {
-				BackgroundTransparency = 1
-			}):Play()
+			TweenService:Create(b, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
 			local lbl = b:FindFirstChild("Label")
-			if lbl then
-				TweenService:Create(lbl, TweenInfo.new(0.15), {
-					TextColor3 = Colors.SubText
-				}):Play()
-			end
+			if lbl then TweenService:Create(lbl, TweenInfo.new(0.15), { TextColor3 = Colors.SubText }):Play() end
 		end
 		activeTab = btn
-		TweenService:Create(btn, TweenInfo.new(0.15), {
-			BackgroundTransparency = 0.5,
-			BackgroundColor3 = Colors.SlotHover
-		}):Play()
-		TweenService:Create(textLabel, TweenInfo.new(0.15), {
-			TextColor3 = Colors.Text
-		}):Play()
-
+		TweenService:Create(btn, TweenInfo.new(0.15), { BackgroundTransparency = 0.5, BackgroundColor3 = Colors.SlotHover }):Play()
+		TweenService:Create(textLabel, TweenInfo.new(0.15), { TextColor3 = Colors.Text }):Play()
 		if onClick then onClick() end
 	end)
 
@@ -574,195 +737,50 @@ end
 
 SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 	local query = SearchBox.Text:lower()
-
 	for _, btn in pairs(SidebarButtonContainer:GetChildren()) do
 		if btn:IsA("TextButton") then
 			local label = btn:FindFirstChild("Label")
 			if label then
-				if query == "" then
-					btn.Visible = true
-				else
-					btn.Visible = label.Text:lower():find(query) ~= nil
-				end
-			end
-		end
-	end
-
-	for _, child in pairs(Scroll:GetChildren()) do
-		if child:IsA("Frame") or child:IsA("TextLabel") then
-			local found = false
-			for _, desc in pairs(child:GetDescendants()) do
-				if desc:IsA("TextLabel") and desc.Text:lower():find(query) then
-					found = true
-					break
-				end
-			end
-			if query == "" then
-				child.Visible = true
-			else
-				child.Visible = found
+				btn.Visible = (query == "" or label.Text:lower():find(query) ~= nil)
 			end
 		end
 	end
 end)
 
-SearchBox.FocusLost:Connect(function(enterPressed)
-	if not enterPressed then return end
-	local query = SearchBox.Text:lower()
-	if query == "" then return end
-
-	for _, btn in pairs(SidebarButtonContainer:GetChildren()) do
-		if btn:IsA("TextButton") then
-			local label = btn:FindFirstChild("Label")
-			if label and label.Text:lower():find(query) then
-				btn.MouseButton1Click:Fire()
-				break
-			end
-		end
-	end
-end)
-
--- ===== DISCORD PILL (FIX UKURAN) =====
-local DiscordPill = Instance.new("TextButton")
-DiscordPill.Name = "DiscordPill"
-DiscordPill.Size = UDim2.new(1, -4, 0, 34)
-DiscordPill.Position = UDim2.new(0, 2, 1, -38)
-DiscordPill.BackgroundColor3 = DefaultPillBg
-DiscordPill.BorderSizePixel = 0
-DiscordPill.Text = ""
-DiscordPill.AutoButtonColor = false
-DiscordPill.Parent = Sidebar
-
-local dpCorner = Instance.new("UICorner")
-dpCorner.CornerRadius = UDim.new(0, 5)
-dpCorner.Parent = DiscordPill
-
-local dpStroke = Instance.new("UIStroke")
-dpStroke.Color = DefaultPillStroke
-dpStroke.Thickness = 1
-dpStroke.Parent = DiscordPill
-
-local DiscordIcon = Instance.new("ImageLabel")
-DiscordIcon.Name = "DiscordIcon"
-DiscordIcon.Size = UDim2.new(0, 16, 0, 16)
-DiscordIcon.Position = UDim2.new(0, 6, 0.5, -8)
-DiscordIcon.BackgroundTransparency = 1
-DiscordIcon.Image = "rbxassetid://98671378613860"
-DiscordIcon.ScaleType = Enum.ScaleType.Fit
-DiscordIcon.Parent = DiscordPill
-
-local DiscordTitle = Instance.new("TextLabel")
-DiscordTitle.Name = "DiscordTitle"
-DiscordTitle.Size = UDim2.new(1, -28, 0, 12)
-DiscordTitle.Position = UDim2.new(0, 26, 0, 4)
-DiscordTitle.BackgroundTransparency = 1
-DiscordTitle.Text = "Discord"
-DiscordTitle.TextColor3 = DefaultPillText
-DiscordTitle.Font = Enum.Font.GothamBold
-DiscordTitle.TextSize = 10
-DiscordTitle.TextXAlignment = Enum.TextXAlignment.Left
-DiscordTitle.TextTruncate = Enum.TextTruncate.AtEnd
-DiscordTitle.Parent = DiscordPill
-
-local DiscordLink = Instance.new("TextLabel")
-DiscordLink.Name = "DiscordLink"
-DiscordLink.Size = UDim2.new(1, -28, 0, 10)
-DiscordLink.Position = UDim2.new(0, 26, 0, 18)
-DiscordLink.BackgroundTransparency = 1
-DiscordLink.Text = "discord.gg/cvWW5DBZKR"
-DiscordLink.TextColor3 = Color3.fromRGB(140, 140, 150)
-DiscordLink.Font = Enum.Font.Gotham
-DiscordLink.TextSize = 7
-DiscordLink.TextXAlignment = Enum.TextXAlignment.Left
-DiscordLink.TextTruncate = Enum.TextTruncate.AtEnd
-DiscordLink.Parent = DiscordPill
-
-table.insert(allPills, DiscordPill)
-table.insert(allPillStrokes, dpStroke)
-table.insert(allPillTexts, DiscordTitle)
-
-DiscordPill.MouseEnter:Connect(function()
-	TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
-		BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-	}):Play()
-end)
-DiscordPill.MouseLeave:Connect(function()
-	if RainbowActive then return end
-	local theme = ThemeColors[ActiveTheme]
-	TweenService:Create(DiscordPill, TweenInfo.new(0.15), {
-		BackgroundColor3 = theme.bg
-	}):Play()
-end)
-
-DiscordPill.MouseButton1Click:Connect(function()
-	pcall(function()
-		if setclipboard then
-			setclipboard("https://discord.gg/3MrpqYycs")
-		elseif toclipboard then
-			toclipboard("https://discord.gg/3MrpqYycs")
-		end
-	end)
-end)
-
---============================================================
--- FUNGSI GANTI TEMA
---============================================================
 local function applyPillTheme(themeName)
 	ActiveTheme = themeName
-
-	if themeName == "Rainbow" then
-		RainbowActive = true
-		return
-	else
-		RainbowActive = false
-	end
+	RainbowActive = (themeName == "Rainbow")
+	if RainbowActive then return end
 
 	local theme = ThemeColors[themeName]
 	if not theme then return end
 
 	for _, pill in pairs(allPills) do
-		TweenService:Create(pill, TweenInfo.new(0.2), {
-			BackgroundColor3 = theme.bg
-		}):Play()
+		TweenService:Create(pill, TweenInfo.new(0.2), { BackgroundColor3 = theme.bg }):Play()
 	end
 	for _, stroke in pairs(allPillStrokes) do
-		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Color = theme.stroke
-		}):Play()
+		TweenService:Create(stroke, TweenInfo.new(0.2), { Color = theme.stroke }):Play()
 	end
 	for _, txt in pairs(allPillTexts) do
-		TweenService:Create(txt, TweenInfo.new(0.2), {
-			TextColor3 = theme.text
-		}):Play()
+		TweenService:Create(txt, TweenInfo.new(0.2), { TextColor3 = theme.text }):Play()
 	end
-	TweenService:Create(DiscordLink, TweenInfo.new(0.2), {
-		TextColor3 = theme.text
-	}):Play()
+	TweenService:Create(DiscordLink, TweenInfo.new(0.2), { TextColor3 = theme.text }):Play()
 
 	for _, border in pairs(allBorders) do
 		if border and border.Parent then
-			TweenService:Create(border, TweenInfo.new(0.2), {
-				Color = theme.border
-			}):Play()
+			TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.border }):Play()
 		end
 	end
-	TweenService:Create(TopDivider, TweenInfo.new(0.2), {
-		BackgroundColor3 = theme.border
-	}):Play()
-	TweenService:Create(SidebarDivider, TweenInfo.new(0.2), {
-		BackgroundColor3 = theme.border
-	}):Play()
+	TopDivider.BackgroundColor3 = theme.border
+	SidebarDivider.BackgroundColor3 = theme.border
 
 	for _, border in pairs(infoLogoBorders) do
 		if border and border.Parent then
-			TweenService:Create(border, TweenInfo.new(0.2), {
-				Color = theme.infoLogo or theme.border
-			}):Play()
+			TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.infoLogo or theme.border }):Play()
 		end
 	end
 end
 
--- ===== RAINBOW LOOP =====
 RunService.Heartbeat:Connect(function()
 	if not RainbowActive then return end
 
@@ -771,39 +789,24 @@ RunService.Heartbeat:Connect(function()
 	local rainbowDark = Color3.fromHSV(RainbowHue, 0.8, 0.4)
 	local rainbowText = Color3.fromHSV(RainbowHue, 0.3, 1)
 
-	for _, pill in pairs(allPills) do
-		pill.BackgroundColor3 = rainbowDark
-	end
-	for _, stroke in pairs(allPillStrokes) do
-		stroke.Color = rainbowColor
-	end
-	for _, txt in pairs(allPillTexts) do
-		txt.TextColor3 = rainbowText
-	end
+	for _, pill in pairs(allPills) do pill.BackgroundColor3 = rainbowDark end
+	for _, stroke in pairs(allPillStrokes) do stroke.Color = rainbowColor end
+	for _, txt in pairs(allPillTexts) do txt.TextColor3 = rainbowText end
 	DiscordLink.TextColor3 = rainbowText
 
-	for _, border in pairs(allBorders) do
-		if border and border.Parent then
-			border.Color = rainbowColor
-		end
-	end
-	for _, border in pairs(infoLogoBorders) do
-		if border and border.Parent then
-			border.Color = rainbowColor
-		end
-	end
+	for _, border in pairs(allBorders) do if border and border.Parent then border.Color = rainbowColor end end
+	for _, border in pairs(infoLogoBorders) do if border and border.Parent then border.Color = rainbowColor end end
 	TopDivider.BackgroundColor3 = rainbowColor
 	SidebarDivider.BackgroundColor3 = rainbowColor
 end)
 
---============================================================
--- HOME PANEL
---============================================================
 local function loadHomePanel()
 	clearContent()
 
 	local welcomeCard = Instance.new("Frame")
-	welcomeCard.Size = UDim2.new(1, 0, 0, 85)
+	welcomeCard.Name = "WelcomeCard"
+	welcomeCard.Size = UDim2.new(1, 0, 0, 75)
+	welcomeCard.Position = UDim2.new(0, 0, 0, 0)
 	welcomeCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	welcomeCard.BorderSizePixel = 0
 	welcomeCard.LayoutOrder = 1
@@ -816,35 +819,38 @@ local function loadHomePanel()
 	local wStroke = Instance.new("UIStroke")
 	wStroke.Color = ThemeColors[ActiveTheme].border
 	wStroke.Thickness = 1
+	wStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	wStroke.Parent = welcomeCard
 	registerBorder(wStroke)
 
 	local wTitle = Instance.new("TextLabel")
-	wTitle.Size = UDim2.new(1, -30, 0, 22)
-	wTitle.Position = UDim2.new(0, 14, 0, 10)
+	wTitle.Size = UDim2.new(1, -30, 0, 20)
+	wTitle.Position = UDim2.new(0, 14, 0, 8)
 	wTitle.BackgroundTransparency = 1
 	wTitle.Text = "Welcome to Zorx"
 	wTitle.TextColor3 = Colors.Text
 	wTitle.Font = Enum.Font.GothamBold
-	wTitle.TextSize = 14
+	wTitle.TextSize = 13
 	wTitle.TextXAlignment = Enum.TextXAlignment.Left
 	wTitle.Parent = welcomeCard
 
 	local wDesc = Instance.new("TextLabel")
-	wDesc.Size = UDim2.new(1, -28, 0, 45)
-	wDesc.Position = UDim2.new(0, 14, 0, 35)
+	wDesc.Size = UDim2.new(1, -28, 0, 38)
+	wDesc.Position = UDim2.new(0, 14, 0, 30)
 	wDesc.BackgroundTransparency = 1
 	wDesc.Text = "Welcome! This hub is designed to keep every feature organized, responsive, and easy to use. Select a tab from the sidebar to get started."
 	wDesc.TextColor3 = Color3.fromRGB(170, 170, 190)
 	wDesc.Font = Enum.Font.Gotham
-	wDesc.TextSize = 10
+	wDesc.TextSize = 9.5
 	wDesc.TextXAlignment = Enum.TextXAlignment.Left
 	wDesc.TextYAlignment = Enum.TextYAlignment.Top
 	wDesc.TextWrapped = true
 	wDesc.Parent = welcomeCard
 
 	local imageCard = Instance.new("Frame")
-	imageCard.Size = UDim2.new(1, 0, 0, 170)
+	imageCard.Name = "ImageCard"
+	imageCard.Size = UDim2.new(1, 0, 0, 140)
+	imageCard.Position = UDim2.new(0, 0, 0, 0)
 	imageCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	imageCard.BorderSizePixel = 0
 	imageCard.ClipsDescendants = true
@@ -855,41 +861,35 @@ local function loadHomePanel()
 	iCorner.CornerRadius = UDim.new(0, 8)
 	iCorner.Parent = imageCard
 
-	local imgContainer = Instance.new("Frame")
-	imgContainer.Size = UDim2.new(1, -4, 1, -4)
-	imgContainer.Position = UDim2.new(0, 2, 0, 2)
-	imgContainer.BackgroundTransparency = 1
-	imgContainer.BorderSizePixel = 0
-	imgContainer.ClipsDescendants = true
-	imgContainer.Parent = imageCard
-
-	local icCorner = Instance.new("UICorner")
-	icCorner.CornerRadius = UDim.new(0, 6)
-	icCorner.Parent = imgContainer
-
 	local img = Instance.new("ImageLabel")
 	img.Size = UDim2.new(1, 0, 1, 0)
 	img.BackgroundTransparency = 1
 	img.BorderSizePixel = 0
-	img.Image = "rbxassetid://138859759137296"
-	img.ScaleType = Enum.ScaleType.Crop
-	img.Parent = imgContainer
+	img.Image = "rbxassetid://91006115016356"
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.ClipsDescendants = true
+	img.Parent = imageCard
+
+	local imgCorner = Instance.new("UICorner")
+	imgCorner.CornerRadius = UDim.new(0, 7)
+	imgCorner.Parent = img
 
 	local iStroke = Instance.new("UIStroke")
 	iStroke.Color = ThemeColors[ActiveTheme].border
-	iStroke.Thickness = 0.5
+	iStroke.Thickness = 1
 	iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	iStroke.Parent = imageCard
 	registerBorder(iStroke)
 end
 
---============================================================
--- INFO PANEL
---============================================================
+-- TAB INFO KEMBALI KE LAYOUT VERTIKAL KE BAWAH (ORIGINAL)
 local function loadInfoPanel()
 	clearContent()
+
 	local communityCard = Instance.new("Frame")
+	communityCard.Name = "CommunityCard"
 	communityCard.Size = UDim2.new(1, 0, 0, 145)
+	communityCard.Position = UDim2.new(0, 0, 0, 0)
 	communityCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	communityCard.BorderSizePixel = 0
 	communityCard.LayoutOrder = 1
@@ -902,6 +902,7 @@ local function loadInfoPanel()
 	local cStroke = Instance.new("UIStroke")
 	cStroke.Color = ThemeColors[ActiveTheme].border
 	cStroke.Thickness = 1
+	cStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cStroke.Parent = communityCard
 	registerBorder(cStroke)
 
@@ -920,6 +921,7 @@ local function loadInfoPanel()
 	local logoStroke = Instance.new("UIStroke")
 	logoStroke.Color = ThemeColors[ActiveTheme].infoLogo or ThemeColors[ActiveTheme].border
 	logoStroke.Thickness = 1
+	logoStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	logoStroke.Parent = logoBox
 	registerInfoLogoBorder(logoStroke)
 
@@ -971,30 +973,27 @@ local function loadInfoPanel()
 	local cdStroke = Instance.new("UIStroke")
 	cdStroke.Color = ThemeColors[ActiveTheme].border
 	cdStroke.Thickness = 1
+	cdStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cdStroke.Parent = copyDiscordBtn
 	registerBorder(cdStroke)
 
 	local cdText = Instance.new("TextLabel")
-	cdText.Size = UDim2.new(1, -40, 1, 0)
+	cdText.Size = UDim2.new(1, -45, 1, 0)
 	cdText.Position = UDim2.new(0, 12, 0, 0)
 	cdText.BackgroundTransparency = 1
 	cdText.Text = "Copy Discord Invite"
 	cdText.TextColor3 = Color3.fromRGB(230, 240, 235)
 	cdText.Font = Enum.Font.GothamBold
-	cdText.TextSize = 11
+	cdText.TextSize = 10
 	cdText.TextXAlignment = Enum.TextXAlignment.Left
 	cdText.Parent = copyDiscordBtn
 
-	local cdIcon = Instance.new("TextLabel")
-	cdIcon.Size = UDim2.new(0, 20, 1, 0)
-	cdIcon.Position = UDim2.new(1, -28, 0, 0)
+	local cdIcon = Instance.new("ImageLabel")
+	cdIcon.Size = UDim2.new(0, 14, 0, 14)
+	cdIcon.Position = UDim2.new(1, -22, 0.5, -7)
 	cdIcon.BackgroundTransparency = 1
-	cdIcon.Text = "🔗"
-	cdIcon.TextSize = 16
-	cdIcon.Font = Enum.Font.GothamBold
-	cdIcon.TextColor3 = Color3.fromRGB(230, 240, 235)
-	cdIcon.TextXAlignment = Enum.TextXAlignment.Center
-	cdIcon.TextYAlignment = Enum.TextYAlignment.Center
+	cdIcon.Image = "rbxassetid://101397742551590"
+	cdIcon.ScaleType = Enum.ScaleType.Fit
 	cdIcon.Parent = copyDiscordBtn
 
 	local updateBtn = Instance.new("TextButton")
@@ -1013,28 +1012,27 @@ local function loadInfoPanel()
 	local udStroke = Instance.new("UIStroke")
 	udStroke.Color = ThemeColors[ActiveTheme].border
 	udStroke.Thickness = 1
+	udStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	udStroke.Parent = updateBtn
 	registerBorder(udStroke)
 
 	local udText = Instance.new("TextLabel")
-	udText.Size = UDim2.new(1, -40, 1, 0)
+	udText.Size = UDim2.new(1, -45, 1, 0)
 	udText.Position = UDim2.new(0, 12, 0, 0)
 	udText.BackgroundTransparency = 1
 	udText.Text = "Update Info"
 	udText.TextColor3 = Color3.fromRGB(230, 240, 235)
 	udText.Font = Enum.Font.GothamBold
-	udText.TextSize = 11
+	udText.TextSize = 10
 	udText.TextXAlignment = Enum.TextXAlignment.Left
 	udText.Parent = updateBtn
 
 	local udIcon = Instance.new("ImageLabel")
-	udIcon.Size = UDim2.new(0, 18, 0, 18)
-	udIcon.Position = UDim2.new(1, -28, 0.5, -9)
+	udIcon.Size = UDim2.new(0, 14, 0, 14)
+	udIcon.Position = UDim2.new(1, -22, 0.5, -7)
 	udIcon.BackgroundTransparency = 1
-	udIcon.Image = "rbxassetid://3926305904"
-	udIcon.ImageColor3 = Color3.fromRGB(230, 240, 235)
-	udIcon.ImageRectOffset = Vector2.new(764, 84)
-	udIcon.ImageRectSize = Vector2.new(36, 36)
+	udIcon.Image = "rbxassetid://137170375224448"
+	udIcon.ScaleType = Enum.ScaleType.Fit
 	udIcon.Parent = updateBtn
 
 	copyDiscordBtn.MouseButton1Click:Connect(function()
@@ -1045,6 +1043,7 @@ local function loadInfoPanel()
 				toclipboard("https://discord.gg/3MrpqYycs")
 			end
 		end)
+		sendNotification("Zorx Community", "Discord invite link copied to clipboard!", "77776661633653", 3.5)
 	end)
 
 	updateBtn.MouseButton1Click:Connect(function()
@@ -1053,12 +1052,10 @@ local function loadInfoPanel()
 		task.wait(0.8)
 		udIcon.Rotation = 0
 		cInfo.Text = "- Version: v5.0\n- Last Update: " .. getTodayDate()
+		sendNotification("Zorx Community", "Discord server information updated.", "77776661633653", 3.5)
 	end)
 end
 
---============================================================
--- SETTINGS PANEL
---============================================================
 local function loadSettingsPanel()
 	clearContent()
 
@@ -1089,11 +1086,11 @@ local function loadSettingsPanel()
 	local drStroke = Instance.new("UIStroke")
 	drStroke.Color = ThemeColors[ActiveTheme].border
 	drStroke.Thickness = 1
+	drStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	drStroke.Parent = dropdownRow
 	registerBorder(drStroke)
 
 	local drTitle = Instance.new("TextLabel")
-	drTitle.Name = "Title"
 	drTitle.Size = UDim2.new(1, -130, 0, 16)
 	drTitle.Position = UDim2.new(0, 10, 0, 6)
 	drTitle.BackgroundTransparency = 1
@@ -1105,7 +1102,6 @@ local function loadSettingsPanel()
 	drTitle.Parent = dropdownRow
 
 	local drDesc = Instance.new("TextLabel")
-	drDesc.Name = "Desc"
 	drDesc.Size = UDim2.new(1, -130, 0, 12)
 	drDesc.Position = UDim2.new(0, 10, 0, 22)
 	drDesc.BackgroundTransparency = 1
@@ -1117,7 +1113,6 @@ local function loadSettingsPanel()
 	drDesc.Parent = dropdownRow
 
 	local dropBox = Instance.new("TextButton")
-	dropBox.Name = "DropBox"
 	dropBox.Size = UDim2.new(0, 110, 0, 24)
 	dropBox.Position = UDim2.new(1, -120, 0.5, -12)
 	dropBox.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
@@ -1150,6 +1145,7 @@ local function loadSettingsPanel()
 	local popupStroke = Instance.new("UIStroke")
 	popupStroke.Color = Colors.Stroke
 	popupStroke.Thickness = 1
+	popupStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	popupStroke.Parent = popup
 
 	local popupScroll = Instance.new("ScrollingFrame")
@@ -1201,7 +1197,6 @@ local function loadSettingsPanel()
 			end
 
 			local item = Instance.new("TextButton")
-			item.Name = "Item_" .. themeName
 			item.Size = UDim2.new(1, -6, 0, 24)
 			item.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 			item.BackgroundTransparency = 1
@@ -1216,7 +1211,6 @@ local function loadSettingsPanel()
 			itemCorner.Parent = item
 
 			local dot = Instance.new("Frame")
-			dot.Name = "Dot"
 			dot.Size = UDim2.new(0, 12, 0, 12)
 			dot.Position = UDim2.new(0, 6, 0.5, -6)
 			dot.BackgroundColor3 = dotColor
@@ -1230,10 +1224,10 @@ local function loadSettingsPanel()
 			local dotStroke = Instance.new("UIStroke")
 			dotStroke.Color = Color3.fromRGB(80, 80, 90)
 			dotStroke.Thickness = 1
+			dotStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			dotStroke.Parent = dot
 
 			local itemText = Instance.new("TextLabel")
-			itemText.Name = "Text"
 			itemText.Size = UDim2.new(1, -30, 1, 0)
 			itemText.Position = UDim2.new(0, 24, 0, 0)
 			itemText.BackgroundTransparency = 1
@@ -1289,18 +1283,12 @@ local function loadSettingsPanel()
 	end)
 end
 
---============================================================
--- SIDEBAR BUTTONS
---============================================================
-createSidebarButton("Home", 1, loadHomePanel)
-createSidebarButton("Farm", 2, function() end)
-createSidebarButton("Misc", 3, function() end)
-createSidebarButton("Settings", 4, loadSettingsPanel)
-createSidebarButton("Info", 5, loadInfoPanel)
+createSidebarButton("Home", 1, "135090089738327", loadHomePanel)
+createSidebarButton("Farm", 2, "98852406765639", function() end)
+createSidebarButton("Misc", 3, "112245774650566", function() end)
+createSidebarButton("Settings", 4, "117852848591099", loadSettingsPanel)
+createSidebarButton("Info", 5, "117372440865704", loadInfoPanel)
 
---============================================================
--- LANGSUNG KE HOME SAAT EXECUTE
---============================================================
 task.wait(0.1)
 
 activeTab = sidebarButtons[1]
@@ -1317,4 +1305,6 @@ end
 
 loadHomePanel()
 
-print("ZORX Hub - Loaded!")
+sendNotification("ZorX Hub", "Script loaded successfully!", "82414580295798", 3)
+
+print("ZORX Hub - Global Watermark Added Successfully!")
