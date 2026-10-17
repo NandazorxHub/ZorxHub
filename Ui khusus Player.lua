@@ -1,11 +1,12 @@
 --============================================================
--- ZORX HUB - FULL SERVICE (PERFECT INFO CARD LAYOUT)
+-- ZORX HUB - FULL SERVICE (WITH LIVE BROADCAST RECEIVER)
 --============================================================
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -194,6 +195,32 @@ local function sendNotification(titleText, messageText, iconId, duration)
 		end
 	end)
 end
+
+-- ============================================================
+-- LIVE BROADCAST RECEIVER (KONEKSI KHUSUS PLAYER)
+-- ============================================================
+task.spawn(function()
+	local lastTimeChecked = 0
+	while task.wait(5) do
+		pcall(function()
+			local response = request({
+				Url = "https://DATABASE_KAMU_DI_FIREBASE.firebaseio.com/broadcast.json",
+				Method = "GET"
+			})
+			if response and response.StatusCode == 200 then
+				local data = HttpService:JSONDecode(response.Body)
+				if data and data.Pesan and data.Waktu then
+					if data.Waktu > lastTimeChecked then
+						if lastTimeChecked ~= 0 then
+							sendNotification("Zorx Broadcast", data.Pesan, "134572030759999", 5)
+						end
+						lastTimeChecked = data.Waktu
+					end
+				end
+			end
+		end)
+	end
+end)
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -669,6 +696,7 @@ local function createSidebarButton(text, order, iconId, onClick)
 
 	if iconId and iconId ~= "" then
 		local btnIcon = Instance.new("ImageLabel")
+		btnIcon.Name = "Icon"
 		btnIcon.Size = UDim2.new(0, 14, 0, 14)
 		btnIcon.Position = UDim2.new(0, 6, 0.5, -7)
 		btnIcon.BackgroundTransparency = 1
@@ -903,7 +931,6 @@ local function loadInfoPanel()
 	cStroke.Parent = communityCard
 	registerBorder(cStroke)
 
-	-- KOTAK LOGO DISAMAKAN RAPI & PRESISI DENGAN UKURAN KARTU GAMBAR
 	local logoBox = Instance.new("Frame")
 	logoBox.Size = UDim2.new(0, 56, 0, 56)
 	logoBox.Position = UDim2.new(0, 14, 0, 14)
@@ -924,7 +951,7 @@ local function loadInfoPanel()
 	registerInfoLogoBorder(logoStroke)
 
 	local logoImg2 = Instance.new("ImageLabel")
-	logoImg2.Size = UDim2.new(1, 0, 1, 0) -- FULL STRETCH RAPI SEPERTI DI ABOUT
+	logoImg2.Size = UDim2.new(1, 0, 1, 0)
 	logoImg2.Position = UDim2.new(0, 0, 0, 0)
 	logoImg2.BackgroundTransparency = 1
 	logoImg2.BorderSizePixel = 0
@@ -1312,4 +1339,4 @@ loadAboutPanel()
 
 sendNotification("ZorX Hub", "Script loaded successfully!", "134572030759999", 3)
 
-print("ZORX Hub - Info Card Image Perfectly Aligned!")
+print("ZORX Hub - Public Script with Live Broadcast Connected!")
